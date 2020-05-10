@@ -1,4 +1,6 @@
 #include "config.h"
+#include <stddef.h>
+#include <stdint.h>
 
 #ifndef SCALE_H
 #define SCALE_H
