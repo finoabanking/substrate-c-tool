@@ -3,7 +3,7 @@ ifeq ($(DEFAULT_CONFIG),1)
 endif
 
 scale:
-	afl-g++ -x c -c ../../src/scale.c -o ./bin/scale.o
+	afl-g++ -x c -c ../../src/scale.c $(CFLAGS) -o ./bin/scale.o
 	afl-g++ -c fuzzScale.cpp -o bin/fuzzScale.o
 	afl-g++ -o ./bin/fuzzScale ./bin/fuzzScale.o ./bin/scale.o
 
