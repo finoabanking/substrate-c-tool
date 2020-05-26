@@ -234,7 +234,7 @@ uint8_t validate_transaction_data(const SubstrateTransaction *transaction_data) 
 // @param `runtime` points to the runtime
 uint8_t validate_runtime(const SubstrateRuntime *runtime) {
     if (runtime) {
-        if ( runtime->chain == kusama )
+        if ( runtime->chain == KUSAMA )
             return 0;
     }
     SUBSTRATE_PRINTF("Invalid chain\n");

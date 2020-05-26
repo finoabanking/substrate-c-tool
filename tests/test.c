@@ -10,6 +10,7 @@
 #include "../lib/munit/munit.h"
 #include "../src/substrate-address.h"
 #include "../src/kusama.h"
+#include "utils.h"
 
 // creates a `SubstrateTransaction` without checking if values are acceptable
 // returns 1 if the creation fails
@@ -255,12 +256,28 @@ static MunitResult decodes_raw_extrinsic(const MunitParameter params[], void* da
   return MUNIT_OK;
 }
 
+static MunitResult generates_address_from_seed(const MunitParameter params[], void* data) {
+
+  size_t address_len, pklen;
+  uint8_t* address = NULL;
+  uint8_t* pk = NULL;
+  uint8_t seed[32] = {0xab, 0xf8, 0xe5, 0xbd, 0xbe, 0x30, 0xc6, 0x56, 0x56, 0xc0, 0xa3, 0xcb, 0xd1, 0x81, 0xff, 0x8a, 0x56, 0x29, 0x4a, 0x69, 0xdf, 0xed, 0xd2, 0x79, 0x82, 0xaa, 0xce, 0x4a, 0x76, 0x90, 0x91, 0x15};
+  ss58_encode_from_seed(&address, &address_len, &pk, &pklen, seed, GENERIC);
+  munit_assert_memory_equal(address_len, address, "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpu");
+  munit_assert(pklen == ADDRESS_LEN);
+  uint8_t expected_key[ADDRESS_LEN] = {0xab, 0xf8, 0xe5, 0xbd, 0xbe, 0x30, 0xc6, 0x56, 0x56, 0xc0, 0xa3, 0xcb, 0xd1, 0x81, 0xff, 0x8a, 0x56, 0x29, 0x4a, 0x69, 0xdf, 0xed, 0xd2, 0x79, 0x82, 0xaa, 0xce, 0x4a, 0x76, 0x90, 0x91, 0x15};
+  munit_assert_memory_equal(pklen, pk, expected_key);
+  free((void*) address);
+  free((void*) pk);
+  return MUNIT_OK;
+}
+
 static MunitResult address_is_correct(const MunitParameter params[], void* data) {
 
   size_t address_len;
   generate_Alices_test_keypair();
   uint8_t* address = NULL;
-  ss58_encode(&address, &address_len, Alice.public_key, generic);
+  ss58_encode(&address, &address_len, Alice.public_key, GENERIC);
   munit_assert_memory_equal(address_len, address, "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpu");
   free((void*) address);
   return MUNIT_OK;
@@ -272,7 +289,7 @@ static MunitResult generates_polkadot_address(const MunitParameter params[], voi
   size_t address_len;
   generate_Alices_test_keypair();
   uint8_t expected[] = "146SvjUZXoMaemdeiecyxgALeYMm8ZWh1yrGo8RtpoPfe7WL";
-  ss58_encode(&address, &address_len, Alice.public_key, polkadot);
+  ss58_encode(&address, &address_len, Alice.public_key, POLKADOT);
 
   munit_assert_memory_equal(address_len, address, expected);
   free((void*) address);  
@@ -306,7 +323,7 @@ static MunitResult constructs_balance_transfer_function(const MunitParameter par
   uint8_t amount[1] = {0x00};
   uint8_t nonce[1] = {0x01};
   uint8_t tip[1] = {0x00};
-  if (mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, kusama, 4, Alice.public_key) != 0)
+  if (mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, KUSAMA, 4, Alice.public_key) != 0)
     return MUNIT_ERROR;
 
   // construct context
@@ -339,7 +356,7 @@ static MunitResult constructs_transaction_payload(const MunitParameter params[],
   uint8_t amount[1] = {0x00};
   uint8_t nonce[1] = {0x01};
   uint8_t tip[1] = {0x00};
-  mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, kusama, 4, Alice.public_key);
+  mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, KUSAMA, 4, Alice.public_key);
   // construct context
   SubstrateBlock current_block;
   mock_current_block(&current_block);
@@ -365,7 +382,7 @@ static MunitResult constructs_transaction_info(const MunitParameter params[], vo
   uint8_t nonce[1] = {0x01};
   uint8_t tip[1] = {0x00};
   SubstrateTransaction transaction_data;
-  mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, kusama, 4, Alice.public_key);
+  mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, KUSAMA, 4, Alice.public_key);
 
   // construct context
   SubstrateBlock current_block;
@@ -427,7 +444,7 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   uint8_t amount[1] = {0x00};
   uint8_t nonce[1] = {0x01};
   uint8_t tip[1] = {0x00};
-  mock_transaction(transaction_data, amount, 1, nonce, 1, tip, 1, kusama, 4, Alice.public_key);
+  mock_transaction(transaction_data, amount, 1, nonce, 1, tip, 1, KUSAMA, 4, Alice.public_key);
 
   sign_transfer_with_secret(&transaction, &transaction_len, Alice.private_key, transaction_data, &kusamaRuntime, &current_block);
   munit_assert_memory_equal(transaction_len, transaction, expected_result);
@@ -441,7 +458,7 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   transaction_data = malloc(sizeof(SubstrateTransaction));
   uint8_t amount2[2] = {0x45};
   uint8_t nonce2[1] = {0x04};
-  mock_transaction(transaction_data, amount2, 2, nonce2, 1, tip, 1, kusama, 4, Alice.public_key);
+  mock_transaction(transaction_data, amount2, 2, nonce2, 1, tip, 1, KUSAMA, 4, Alice.public_key);
   sign_transfer_with_secret(&transaction, &transaction_len, Alice.private_key, transaction_data, &kusamaRuntime, &current_block);
 
   munit_assert_memory_equal(transaction_len, transaction, expected_result);
@@ -455,7 +472,7 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   transaction_data = malloc(sizeof(SubstrateTransaction));
   uint8_t amount3[9] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
   uint8_t nonce3[1] = {0x00};
-  mock_transaction(transaction_data, amount3, 9, nonce3, 1, tip, 1, kusama, 4, Alice.public_key);
+  mock_transaction(transaction_data, amount3, 9, nonce3, 1, tip, 1, KUSAMA, 4, Alice.public_key);
   sign_transfer_with_secret(&transaction, &transaction_len, Alice.private_key, transaction_data, &kusamaRuntime, &current_block);
 
   munit_assert_memory_equal(transaction_len, transaction, expected_result);
@@ -594,6 +611,10 @@ static MunitTest test_suite_tests[] = {
   {
     "[address] generates generic",
     address_is_correct,
+  },
+  {
+    "[address] generates pair from seed",
+    generates_address_from_seed
   },
   {
     "[address] generates polkadot",

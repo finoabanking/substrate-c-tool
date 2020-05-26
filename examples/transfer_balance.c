@@ -1,6 +1,7 @@
 #include <stdio.h>
 
 #include "../src/substrate-methods.h"
+#include "../tests/utils.h"
 #include "../src/kusama.h"
 
 // this example shows how to generate a signed extrinsic containing a balance transfer

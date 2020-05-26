@@ -10,6 +10,7 @@
 extern "C"
 {
 #include "../../src/substrate-methods.h"
+#include "../utils.h"
 #include "../../src/kusama.h"
 }
 
