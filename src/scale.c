@@ -39,6 +39,62 @@ uint8_t contains_scale(const ScaleElem *el) {
     return 0;
 }
 
+size_t get_option_size(const ScaleElem *el) {
+
+    if (!el) {
+        return 1;
+    } else if (el->type == type_bool) {
+        return 1;
+    } else {
+        return get_scale_length(el)+1;
+    }
+}
+
+// encodes a ScaleElem as Option
+// @param `el` the ScaleElem to encode
+// @param `el_option` the Option element. Must be already initialized
+// must have the size `get_option_size`
+uint8_t as_option(const ScaleElem *el, ScaleElem *el_option) {
+    // check that el_option has been initialized correctly
+    if (!el_option)
+        return 1;
+
+    if (el_option->type != type_option)
+        return 1;
+
+    if (!el_option->elem.option.value)
+        return 1; // value is not pre-allocated
+
+    if (el_option->elem.option.length != get_option_size(el))
+        return 1; // they allocated a wrong length
+
+    if (!el) {
+        el_option->elem.option.value[0] = 0x00;
+        return 0;
+    }
+
+    if (el->type == type_bool) {
+        // special case: the type is a boolean, then it is always one byte
+        if (el->elem.boolean.value == 0)
+            el_option->elem.option.value[0] = 0x01;
+        else
+            el_option->elem.option.value[0] = 0x02;
+        
+        return 0;
+    }
+
+    // any other type: 0x01 followed by the encoded value
+    el_option->elem.option.value[0] = 0x01; // first byte
+    // concatenate the rest
+    uint8_t value_len = get_scale_length(el);
+    uint8_t value[value_len];
+    if (get_scale_value(el, value, value_len) == 0) {
+        SUBSTRATE_MEMCPY(&el_option->elem.option.value[1], value, value_len);
+        return 0;
+    }
+
+}
+
 // converts the `value` to a Compact
 // @param `compact` is the pre-allocated compact to fill
 // @param `value` is the uint32_t to be encoded
@@ -208,6 +264,26 @@ void as_boolean(ScaleBoolean* result, uint8_t value) {
         result->value = value & 0x01;
         result->length = 1;
         result->type = type_bool;
+    }
+}
+
+// encodes a collection of SCALE elements to a new SCALE element
+uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, size_t value_len, ScaleElem** elements, size_t elements_len, enum ScaleTypes type) {
+
+    if (!encoded_value)
+        return 1;
+
+    if (type == type_option) {
+        if (elements_len == 1) {
+            encoded_value->type = type_option;
+            encoded_value->elem.option.type = type_option;
+            encoded_value->elem.option.length = value_len;
+            SUBSTRATE_MEMSET(value, 0, value_len);
+            encoded_value->elem.option.value = value;
+            if (as_option(elements[0], encoded_value) == 0) {
+                return 0;
+            }
+        }
     }
 }
 

@@ -88,6 +88,51 @@ uint8_t * hexstring_to_array(const char *string, size_t *output_len) {
 
 }
 
+static MunitResult encodes_option(const MunitParameter params[], void* data) {
+
+  // test NULL (None, 'empty')
+  ScaleElem* scale_elem;
+  size_t size;
+  scale_elem = NULL;
+  size = get_option_size(scale_elem);
+  munit_assert(size == 1);
+  ScaleElem option_null_elem;
+  uint8_t null_value[size];  
+  encode_composite_scale(&option_null_elem, null_value, size, &scale_elem, 1, type_option);
+  uint8_t expected_null[1] = {0x00};
+  munit_assert_memory_equal(1, option_null_elem.elem.option.value, expected_null);
+
+  // test boolean
+  uint8_t v[1] = {0x00}; // boolean is False
+  scale_elem = SUBSTRATE_MALLOC(sizeof(ScaleElem));
+  uint8_t encoded = encode_scale(scale_elem, v, 1, type_bool); // now we have the SCALE-encoded boolean
+
+  ScaleElem option_elem;
+  uint8_t value_len = get_option_size(scale_elem);
+  uint8_t value[value_len];
+  ScaleElem *elements[1];
+  elements[0] = scale_elem;
+  encoded = encode_composite_scale(&option_elem, value, value_len, elements, 1, type_option);
+  uint8_t expected_bool[1] = {0x01};
+  munit_assert_memory_equal(1, option_elem.elem.option.value, expected_bool);  
+
+  // test any other (for example Compact)
+  ScaleElem compact;
+  encoded = encode_scale(&compact, v, 1, type_compact);
+
+  ScaleElem optional_compact;
+  ScaleElem option_elem2;
+  uint8_t optional_compact_len = get_option_size(&compact);
+  uint8_t optional_value[optional_compact_len];
+  ScaleElem *compact_elements[1];
+  compact_elements[0] = &compact;
+  encoded = encode_composite_scale(&option_elem2, optional_value, optional_compact_len, compact_elements, 1, type_option);
+  munit_assert(encoded == 0);
+  uint8_t expected_compact[2] = {0x01, 0x00};
+  munit_assert_memory_equal(2, option_elem2.elem.option.value, expected_compact);  
+
+}
+
 static MunitResult encodes_era(const MunitParameter params[], void* data) {
 
   uint8_t *expected_result;
@@ -607,6 +652,10 @@ static MunitTest test_suite_tests[] = {
   {
     "[scale] encodes Vector u8",
     encodes_vector_u8
+  },
+  {
+    "[scale] encodes Option",
+    encodes_option
   },
   {
     "[address] generates generic",
