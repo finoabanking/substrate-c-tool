@@ -1,18 +1,21 @@
 #include <stdio.h>
 
 #include "../src/substrate-methods.h"
-#include "../tests/utils.h"
 #include "../src/substrate-address.h"
 
 // this example shows how to generate a Substrate address
 // it also shows how to decode the address to the corresponding public key
 int main() {
     
-    generate_Alices_test_keypair();
+    // generate random seed
+    uint8_t seed[32];
+    SUBSTRATE_RANDOMBYTES_BUFFER(seed, 32);
 
     size_t address_len;
     uint8_t *address = NULL;
-    if (ss58_encode(&address, &address_len, Alice.public_key, GENERIC) != 0)
+    uint8_t *privkey = NULL;
+    size_t privkey_len;
+    if (ss58_encode_from_seed(&address, &address_len, &privkey, &privkey_len, seed, GENERIC) != 0)
         exit(1);
 
     printf("Substrate address: %s\n", address);

@@ -408,6 +408,48 @@ static MunitResult address_is_correct(const MunitParameter params[], void* data)
   return MUNIT_OK;
 }
 
+static MunitResult verify_address(const MunitParameter params[], void* data) {
+
+  uint8_t address[] = "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpu";
+  uint8_t result;
+
+  generate_Alices_test_keypair();
+
+  // must fail because buffer is not allocated
+  uint8_t *out = NULL;
+  size_t out_len;
+  result = ss58_decode(out, address, &out_len, GENERIC);
+
+  munit_assert(result == 1);
+
+  // must fail because chain ID is wrong
+  out = SUBSTRATE_MALLOC(64);
+
+  SUBSTRATE_MEMSET(out, 0, 64);
+  result = ss58_decode(out, address, &out_len, KUSAMA);
+  munit_assert(result == 1);
+
+  // must fail because point is not on curve
+  uint8_t invalid_address[] = "5FA9nQDVg267DEd8m1ZypXLBmvN7SFxYwV7ndqSYGiN9TTpu";
+  SUBSTRATE_MEMSET(out, 0, 64);
+  result = ss58_decode(out, invalid_address, &out_len, GENERIC);
+  munit_assert(result == 1);
+
+  // must fail because checksum is wrong
+  uint8_t invalid_checksum[] = "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpv";
+  SUBSTRATE_MEMSET(out, 0, 64);
+  result = ss58_decode(out, invalid_checksum, &out_len, GENERIC);
+  munit_assert(result == 1);
+
+  // must succeed
+  SUBSTRATE_MEMSET(out, 0, 64);
+  result = ss58_decode(out, address, &out_len, GENERIC);
+  munit_assert(result == 0);
+  munit_assert_memory_equal(out_len, out, Alice.public_key);
+
+  return MUNIT_OK;
+}
+
 static MunitResult generates_polkadot_address(const MunitParameter params[], void* data) {
 
   uint8_t* address = NULL;
@@ -790,6 +832,10 @@ static MunitTest test_suite_tests[] = {
   {
     "[address] handles unknown chain",
     fails_for_unknown_chain
+  },
+  {
+    "[address] verifies address",
+    verify_address
   },
   {
     "[transaction] constructs BalanceTransferFunction correctly",

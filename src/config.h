@@ -31,6 +31,8 @@
 // provide a function that verifies that pointer `a` is on ed25519
 // returns 1 if is on the curve, 0 otherwise
 #define SUBSTRATE_ISVALIDPOINT(a) 
+// provide a function that writes `b` random bytes in buffer `a`
+#define SUBSTRATE_RANDOMBYTES_BUFFER(a, b)
 
 #else // an example of configuration
     #include <string.h>
@@ -53,6 +55,7 @@
     #define SUBSTRATE_PRINTF(...)               printf(__VA_ARGS__)
     #define SUBSTRATE_GENERATE_KEYPAIR(a, b, c) crypto_sign_seed_keypair(a, b, c)
     #define SUBSTRATE_ISVALIDPOINT(a)           crypto_core_ed25519_is_valid_point(a)
+    #define SUBSTRATE_RANDOMBYTES_BUFFER(a, b)  randombytes_buf(a, b)
 #endif // DEFAULT_CONFIG
 
 #endif // SUBSTRATE_CONFIG_H
