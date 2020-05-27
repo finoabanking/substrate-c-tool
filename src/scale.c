@@ -177,6 +177,54 @@ uint8_t as_scale_vector(ScaleElem* encoded_value, const ScaleElem** elements, co
     return 1;
 }
 
+// encode uint_8 to SCALE Fixed-Size Integer
+void encode_scale_fixint_u8(ScaleElem *elem, uint8_t value) {
+
+    elem->type = uint8_scale_t;
+    elem->elem.fix_integer.type = uint8_scale_t;
+    elem->elem.fix_integer.length = 1;
+    elem->elem.fix_integer.value[0] = value;
+
+}
+
+// encode uint_16 to SCALE Fixed-Size Integer
+void encode_scale_fixint_u16(ScaleElem *elem, uint16_t value) {
+
+    elem->type = uint16_scale_t;
+    elem->elem.fix_integer.type = uint16_scale_t;
+    elem->elem.fix_integer.length = 2;
+    
+    if ( is_bigendian ) {
+        elem->elem.fix_integer.value[0] = value >> 8;
+        elem->elem.fix_integer.value[1] = value;
+    } else {
+        elem->elem.fix_integer.value[0] = value;
+        elem->elem.fix_integer.value[1] = value >> 8;
+    }
+
+}
+
+// encode uint_32 to SCALE Fixed-Size Integer
+void encode_scale_fixint_u32(ScaleElem *elem, uint32_t value) {
+
+    elem->type = uint32_scale_t;
+    elem->elem.fix_integer.type = uint32_scale_t;
+    elem->elem.fix_integer.length = 4;
+    
+        if (is_bigendian) {
+            elem->elem.fix_integer.value[0] = value >> 24;
+            elem->elem.fix_integer.value[1] = value >> 16;
+            elem->elem.fix_integer.value[2] = value >> 8;
+            elem->elem.fix_integer.value[3] = value;
+        } else {
+            elem->elem.fix_integer.value[3] = value >> 24;
+            elem->elem.fix_integer.value[2] = value >> 16;
+            elem->elem.fix_integer.value[1] = value >> 8;
+            elem->elem.fix_integer.value[0] = value;
+        }
+
+}
+
 // converts the `value` to a Compact
 // @param `compact` is the pre-allocated compact to fill
 // @param `value` is the uint32_t to be encoded

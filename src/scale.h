@@ -11,6 +11,9 @@
 #define SCALE_COMPACT_MAX 68
 
 enum ScaleTypes {
+    uint8_scale_t,
+    uint16_scale_t,
+    uint32_scale_t,
     type_compact,
     type_era,
     type_bool,
@@ -18,6 +21,13 @@ enum ScaleTypes {
     type_vector,
     type_invalid // this should always be the last element
 };
+
+// SCALE Fixed-Size Integer
+typedef struct {
+    size_t length;
+    uint8_t type;
+    uint8_t value[4];
+} FixInt;
 
 // SCALE Option
 typedef struct {
@@ -58,6 +68,7 @@ typedef struct {
 typedef struct {
     enum ScaleTypes type;
     union {
+        FixInt fix_integer;
         Compact compact;
         ScaleBoolean boolean;
         Era era;
@@ -69,6 +80,9 @@ typedef struct {
 // Functions
 uint8_t encode_scale(ScaleElem* encoded_value, uint8_t* value, size_t value_len, enum ScaleTypes type);
 uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, size_t value_len, const ScaleElem** elements, size_t elements_len, enum ScaleTypes type);
+void encode_scale_fixint_u8(ScaleElem *elem, uint8_t value);
+void encode_scale_fixint_u16(ScaleElem *elem, uint16_t value);
+void encode_scale_fixint_u32(ScaleElem *elem, uint32_t value);
 uint8_t decode_stream(const uint8_t* encoded_value, uint8_t* decoded_value, size_t encoded_value_len, size_t *decoded_value_len, size_t *consumed, enum ScaleTypes type);
 uint8_t decode_scale(const ScaleElem *scale_elem, uint8_t *value, size_t *value_len);
 void print_scale(ScaleElem* scale_elem);

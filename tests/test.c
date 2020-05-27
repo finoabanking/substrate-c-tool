@@ -652,6 +652,32 @@ static MunitResult encode_compacts(const MunitParameter params[], void* data) {
   return MUNIT_OK;
 }
 
+static MunitResult encodes_fixed_size_integers(const MunitParameter params[], void* data) {
+
+  // uint8
+  ScaleElem encoded_8;
+  encode_scale_fixint_u8(&encoded_8, 69);
+  uint8_t expected_8[] = {0x45};
+  munit_assert(encoded_8.elem.fix_integer.length == 1);
+  munit_assert_memory_equal(1, encoded_8.elem.fix_integer.value, expected_8);
+
+  // uint16
+  ScaleElem encoded_16;
+  encode_scale_fixint_u16(&encoded_16, 42);
+  uint8_t expected_16[] = {0x2a, 0x00};
+  munit_assert(encoded_16.elem.fix_integer.length == 2);
+  munit_assert_memory_equal(2, encoded_16.elem.fix_integer.value, expected_16);
+
+  // uint32
+  ScaleElem encoded_32;
+  encode_scale_fixint_u32(&encoded_32, 16777215);
+  uint8_t expected_32[] = {0xff, 0xff, 0xff, 0x00};
+  munit_assert(encoded_32.elem.fix_integer.length == 4);
+  munit_assert_memory_equal(4, encoded_32.elem.fix_integer.value, expected_32);
+
+  return MUNIT_OK;
+}
+
 static MunitResult encodes_vector_u8(const MunitParameter params[], void* data) {
 
   uint8_t* expected_result;
@@ -675,6 +701,10 @@ static MunitResult encodes_vector_u8(const MunitParameter params[], void* data) 
 
 
 static MunitTest test_suite_tests[] = {
+  {
+    "[scale] encodes Fixed-Size integers",
+    encodes_fixed_size_integers
+  },
   {
     "[scale] encodes Era",
     encodes_era
