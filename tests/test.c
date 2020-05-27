@@ -10,6 +10,7 @@
 #include "../lib/munit/munit.h"
 #include "../src/substrate-address.h"
 #include "../src/kusama.h"
+#include "utils.h"
 
 // creates a `SubstrateTransaction` without checking if values are acceptable
 // returns 1 if the creation fails
@@ -84,6 +85,131 @@ uint8_t * hexstring_to_array(const char *string, size_t *output_len) {
   }
   // success
   return output;
+
+}
+
+static MunitResult encodes_option(const MunitParameter params[], void* data) {
+
+  // test NULL (None, 'empty')
+  ScaleElem* scale_elem;
+  size_t size;
+  scale_elem = NULL;
+  size = get_option_size(scale_elem);
+  munit_assert(size == 1);
+  ScaleElem option_null_elem;
+  uint8_t null_value[size];
+  const ScaleElem *null_elements[1];
+  null_elements[0] = scale_elem;  
+  encode_composite_scale(&option_null_elem, null_value, size, null_elements, 1, type_option);
+  uint8_t expected_null[1] = {0x00};
+  munit_assert_memory_equal(1, option_null_elem.elem.option.value, expected_null);
+
+  // test boolean
+  uint8_t v[1] = {0x00}; // boolean is False
+  scale_elem = SUBSTRATE_MALLOC(sizeof(ScaleElem));
+  uint8_t encoded = encode_scale(scale_elem, v, 1, type_bool); // now we have the SCALE-encoded boolean
+
+  ScaleElem option_elem;
+  uint8_t value_len = get_option_size(scale_elem);
+  uint8_t value[value_len];
+  const ScaleElem *elements[1];
+  elements[0] = scale_elem;
+  encoded = encode_composite_scale(&option_elem, value, value_len, elements, 1, type_option);
+  uint8_t expected_bool[1] = {0x01};
+  munit_assert_memory_equal(1, option_elem.elem.option.value, expected_bool);  
+
+  // test any other (for example Compact)
+  ScaleElem compact;
+  encoded = encode_scale(&compact, v, 1, type_compact);
+
+  ScaleElem optional_compact;
+  ScaleElem option_elem2;
+  uint8_t optional_compact_len = get_option_size(&compact);
+  uint8_t optional_value[optional_compact_len];
+  const ScaleElem *compact_elements[1];
+  compact_elements[0] = &compact;
+  encoded = encode_composite_scale(&option_elem2, optional_value, optional_compact_len, compact_elements, 1, type_option);
+  munit_assert(encoded == 0);
+  uint8_t expected_compact[2] = {0x01, 0x00};
+  munit_assert_memory_equal(2, option_elem2.elem.option.value, expected_compact);  
+
+}
+
+static MunitResult encodes_vector(const MunitParameter params[], void* data) {
+  // first prepare a collection of compacts
+  ScaleElem compact1;
+  uint8_t value1[1] = {0x01};
+  encode_scale(&compact1, value1, 1, type_compact);
+  ScaleElem compact2;
+  uint8_t value2[2] = {0x01, 0x02};
+  encode_scale(&compact2, value2, 2, type_compact);
+  ScaleElem compact3;
+  uint8_t value3[3] = {0x01, 0x02, 0x03};
+  encode_scale(&compact3, value3, 3, type_compact);
+
+  const ScaleElem *elements[3];
+  elements[0] = &compact1;
+  elements[1] = &compact2;
+  elements[2] = &compact3;
+  // collection is ready
+  
+  // allocate the vector
+  size_t vector_size = get_vector_size(elements, 3);
+  uint8_t value[vector_size];
+
+  // encode the vector!
+  ScaleElem vector_of_compacts;
+  uint8_t encoded = encode_composite_scale(&vector_of_compacts, value, vector_size, elements, 3, type_vector);
+  munit_assert(encoded == 0);
+  munit_assert(vector_of_compacts.elem.vector.length == 8);
+  uint8_t expected[] = {
+    0x0c, // there are three elements
+    0x04, // first
+    0x05, 0x08, // second
+    0x06, 0x08, 0x0c, 0x00 // third
+    };
+  munit_assert_memory_equal(vector_of_compacts.elem.vector.length, vector_of_compacts.elem.vector.value, expected);
+
+  return MUNIT_OK;
+}
+
+static MunitResult encodes_enumeration(const MunitParameter params[], void* data) {
+  // first prepare a collection of SCALEs
+  // in this test we have one boolean and two compacts
+  ScaleElem bool1;
+  uint8_t value1[1] = {0x01};
+  encode_scale(&bool1, value1, 1, type_bool);
+  ScaleElem compact2;
+  uint8_t value2[2] = {0x01, 0x02};
+  encode_scale(&compact2, value2, 2, type_compact);
+  ScaleElem compact3;
+  uint8_t value3[3] = {0x01, 0x02, 0x03};
+  encode_scale(&compact3, value3, 3, type_compact);
+
+  const ScaleElem *elements[3];
+  elements[0] = &bool1;
+  elements[1] = &compact2;
+  elements[2] = &compact3;
+  // collection is ready
+
+  // allocate the enumeration
+  size_t vector_size = get_enumeration_size(elements, 3);
+  uint8_t value[vector_size];
+
+  // encode to enumeration
+  ScaleElem enumeration;
+  uint8_t encoded = encode_composite_scale(&enumeration, value, vector_size, elements, 3, type_enumeration);
+  munit_assert(encoded == 0);
+  munit_assert(enumeration.elem.enumeration.length == 10);
+  uint8_t expected[] = {
+    0x00, // first element index
+    0x01, // first element
+    0x01, // second element index
+    0x05, 0x08, // second element
+    0x02, // third element index
+    0x06, 0x08, 0x0c, 0x00 // third element
+    };
+  munit_assert_memory_equal(enumeration.elem.vector.length, enumeration.elem.vector.value, expected);
 
 }
 
@@ -255,14 +381,74 @@ static MunitResult decodes_raw_extrinsic(const MunitParameter params[], void* da
   return MUNIT_OK;
 }
 
+static MunitResult generates_address_from_seed(const MunitParameter params[], void* data) {
+
+  size_t address_len, pklen;
+  uint8_t* address = NULL;
+  uint8_t* pk = NULL;
+  uint8_t seed[32] = {0xab, 0xf8, 0xe5, 0xbd, 0xbe, 0x30, 0xc6, 0x56, 0x56, 0xc0, 0xa3, 0xcb, 0xd1, 0x81, 0xff, 0x8a, 0x56, 0x29, 0x4a, 0x69, 0xdf, 0xed, 0xd2, 0x79, 0x82, 0xaa, 0xce, 0x4a, 0x76, 0x90, 0x91, 0x15};
+  ss58_encode_from_seed(&address, &address_len, &pk, &pklen, seed, GENERIC);
+  munit_assert_memory_equal(address_len, address, "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpu");
+  munit_assert(pklen == ADDRESS_LEN);
+  uint8_t expected_key[ADDRESS_LEN] = {0xab, 0xf8, 0xe5, 0xbd, 0xbe, 0x30, 0xc6, 0x56, 0x56, 0xc0, 0xa3, 0xcb, 0xd1, 0x81, 0xff, 0x8a, 0x56, 0x29, 0x4a, 0x69, 0xdf, 0xed, 0xd2, 0x79, 0x82, 0xaa, 0xce, 0x4a, 0x76, 0x90, 0x91, 0x15};
+  munit_assert_memory_equal(pklen, pk, expected_key);
+  free((void*) address);
+  free((void*) pk);
+  return MUNIT_OK;
+}
+
 static MunitResult address_is_correct(const MunitParameter params[], void* data) {
 
   size_t address_len;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
   uint8_t* address = NULL;
-  ss58_encode(&address, &address_len, Alice.public_key, generic);
+  ss58_encode(&address, &address_len, Alice.public_key, GENERIC);
   munit_assert_memory_equal(address_len, address, "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpu");
   free((void*) address);
+  return MUNIT_OK;
+}
+
+static MunitResult verify_address(const MunitParameter params[], void* data) {
+
+  uint8_t address[] = "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpu";
+  uint8_t result;
+
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
+  // must fail because buffer is not allocated
+  uint8_t *out = NULL;
+  size_t out_len;
+  result = ss58_decode(out, address, &out_len, GENERIC);
+
+  munit_assert(result == 1);
+
+  // must fail because chain ID is wrong
+  out = SUBSTRATE_MALLOC(64);
+
+  SUBSTRATE_MEMSET(out, 0, 64);
+  result = ss58_decode(out, address, &out_len, KUSAMA);
+  munit_assert(result == 1);
+
+  // must fail because point is not on curve
+  uint8_t invalid_address[] = "5FA9nQDVg267DEd8m1ZypXLBmvN7SFxYwV7ndqSYGiN9TTpu";
+  SUBSTRATE_MEMSET(out, 0, 64);
+  result = ss58_decode(out, invalid_address, &out_len, GENERIC);
+  munit_assert(result == 1);
+
+  // must fail because checksum is wrong
+  uint8_t invalid_checksum[] = "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpv";
+  SUBSTRATE_MEMSET(out, 0, 64);
+  result = ss58_decode(out, invalid_checksum, &out_len, GENERIC);
+  munit_assert(result == 1);
+
+  // must succeed
+  SUBSTRATE_MEMSET(out, 0, 64);
+  result = ss58_decode(out, address, &out_len, GENERIC);
+  munit_assert(result == 0);
+  munit_assert_memory_equal(out_len, out, Alice.public_key);
+
   return MUNIT_OK;
 }
 
@@ -270,9 +456,10 @@ static MunitResult generates_polkadot_address(const MunitParameter params[], voi
 
   uint8_t* address = NULL;
   size_t address_len;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
   uint8_t expected[] = "146SvjUZXoMaemdeiecyxgALeYMm8ZWh1yrGo8RtpoPfe7WL";
-  ss58_encode(&address, &address_len, Alice.public_key, polkadot);
+  ss58_encode(&address, &address_len, Alice.public_key, POLKADOT);
 
   munit_assert_memory_equal(address_len, address, expected);
   free((void*) address);  
@@ -283,7 +470,9 @@ static MunitResult fails_for_unknown_chain(const MunitParameter params[], void* 
 
   size_t address_len;
   uint8_t *address = NULL;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
   ss58_encode(&address, &address_len, Alice.public_key, -1);
   munit_assert_null((char*) address);
   return MUNIT_OK;
@@ -292,7 +481,9 @@ static MunitResult fails_for_unknown_chain(const MunitParameter params[], void* 
 static MunitResult constructs_balance_transfer_function(const MunitParameter params[], void* data) { 
 
   size_t len;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
   const uint8_t* expected_result = hexstring_to_array("040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee00", &len);
   SubstrateTransaction transaction_data;
   size_t call_len;
@@ -306,7 +497,7 @@ static MunitResult constructs_balance_transfer_function(const MunitParameter par
   uint8_t amount[1] = {0x00};
   uint8_t nonce[1] = {0x01};
   uint8_t tip[1] = {0x00};
-  if (mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, kusama, 4, Alice.public_key) != 0)
+  if (mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, KUSAMA, 4, Alice.public_key) != 0)
     return MUNIT_ERROR;
 
   // construct context
@@ -323,7 +514,9 @@ static MunitResult constructs_balance_transfer_function(const MunitParameter par
 static MunitResult constructs_transaction_payload(const MunitParameter params[], void* data) { 
 
   size_t len;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
   const uint8_t* expected_result = hexstring_to_array("040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee000004001f040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe", &len);
   SubstrateTransaction transaction_data;
   size_t payload_len;
@@ -339,7 +532,7 @@ static MunitResult constructs_transaction_payload(const MunitParameter params[],
   uint8_t amount[1] = {0x00};
   uint8_t nonce[1] = {0x01};
   uint8_t tip[1] = {0x00};
-  mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, kusama, 4, Alice.public_key);
+  mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, KUSAMA, 4, Alice.public_key);
   // construct context
   SubstrateBlock current_block;
   mock_current_block(&current_block);
@@ -355,7 +548,9 @@ static MunitResult constructs_transaction_payload(const MunitParameter params[],
 static MunitResult constructs_transaction_info(const MunitParameter params[], void* data) { 
 
   size_t len;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
   const uint8_t* expected_result = hexstring_to_array("88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee0015999702d5a1580bf8e7961385e3e487cbc462d2e553d5df100bbc48b1b1f1d18f9c2cc66a220c68f8e6bdec7357aa4da917e6d70c8f799ac1329a85a7100509000400", &len);
   size_t transaction_info_len;
   uint8_t* result;
@@ -365,7 +560,7 @@ static MunitResult constructs_transaction_info(const MunitParameter params[], vo
   uint8_t nonce[1] = {0x01};
   uint8_t tip[1] = {0x00};
   SubstrateTransaction transaction_data;
-  mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, kusama, 4, Alice.public_key);
+  mock_transaction(&transaction_data, amount, 1, nonce, 1, tip, 1, KUSAMA, 4, Alice.public_key);
 
   // construct context
   SubstrateBlock current_block;
@@ -409,7 +604,9 @@ static MunitResult constructs_extrinsic(const MunitParameter params[], void* dat
 
 static MunitResult signs_transaction_v4(const MunitParameter params[], void* data) {
 
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
   const uint8_t* expected_result;
   SubstrateTransaction* transaction_data;
   uint8_t* transaction;
@@ -427,9 +624,9 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   uint8_t amount[1] = {0x00};
   uint8_t nonce[1] = {0x01};
   uint8_t tip[1] = {0x00};
-  mock_transaction(transaction_data, amount, 1, nonce, 1, tip, 1, kusama, 4, Alice.public_key);
+  mock_transaction(transaction_data, amount, 1, nonce, 1, tip, 1, KUSAMA, 4, Alice.public_key);
 
-  sign_transfer_with_secret(&transaction, &transaction_len, Alice.private_key, transaction_data, &kusamaRuntime, &current_block);
+  sign_transfer_with_secret(&transaction, &transaction_len, &keypair, transaction_data, &kusamaRuntime, &current_block);
   munit_assert_memory_equal(transaction_len, transaction, expected_result);
   SUBSTRATE_FREE(expected_result);
   SUBSTRATE_FREE(transaction);
@@ -441,8 +638,8 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   transaction_data = malloc(sizeof(SubstrateTransaction));
   uint8_t amount2[2] = {0x45};
   uint8_t nonce2[1] = {0x04};
-  mock_transaction(transaction_data, amount2, 2, nonce2, 1, tip, 1, kusama, 4, Alice.public_key);
-  sign_transfer_with_secret(&transaction, &transaction_len, Alice.private_key, transaction_data, &kusamaRuntime, &current_block);
+  mock_transaction(transaction_data, amount2, 2, nonce2, 1, tip, 1, KUSAMA, 4, Alice.public_key);
+  sign_transfer_with_secret(&transaction, &transaction_len, &keypair, transaction_data, &kusamaRuntime, &current_block);
 
   munit_assert_memory_equal(transaction_len, transaction, expected_result);
   SUBSTRATE_FREE(expected_result);
@@ -455,8 +652,8 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   transaction_data = malloc(sizeof(SubstrateTransaction));
   uint8_t amount3[9] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
   uint8_t nonce3[1] = {0x00};
-  mock_transaction(transaction_data, amount3, 9, nonce3, 1, tip, 1, kusama, 4, Alice.public_key);
-  sign_transfer_with_secret(&transaction, &transaction_len, Alice.private_key, transaction_data, &kusamaRuntime, &current_block);
+  mock_transaction(transaction_data, amount3, 9, nonce3, 1, tip, 1, KUSAMA, 4, Alice.public_key);
+  sign_transfer_with_secret(&transaction, &transaction_len, &keypair, transaction_data, &kusamaRuntime, &current_block);
 
   munit_assert_memory_equal(transaction_len, transaction, expected_result);
 
@@ -552,6 +749,32 @@ static MunitResult encode_compacts(const MunitParameter params[], void* data) {
   return MUNIT_OK;
 }
 
+static MunitResult encodes_fixed_size_integers(const MunitParameter params[], void* data) {
+
+  // uint8
+  ScaleElem encoded_8;
+  encode_scale_fixint_u8(&encoded_8, 69);
+  uint8_t expected_8[] = {0x45};
+  munit_assert(encoded_8.elem.fix_integer.length == 1);
+  munit_assert_memory_equal(1, encoded_8.elem.fix_integer.value, expected_8);
+
+  // uint16
+  ScaleElem encoded_16;
+  encode_scale_fixint_u16(&encoded_16, 42);
+  uint8_t expected_16[] = {0x2a, 0x00};
+  munit_assert(encoded_16.elem.fix_integer.length == 2);
+  munit_assert_memory_equal(2, encoded_16.elem.fix_integer.value, expected_16);
+
+  // uint32
+  ScaleElem encoded_32;
+  encode_scale_fixint_u32(&encoded_32, 16777215);
+  uint8_t expected_32[] = {0xff, 0xff, 0xff, 0x00};
+  munit_assert(encoded_32.elem.fix_integer.length == 4);
+  munit_assert_memory_equal(4, encoded_32.elem.fix_integer.value, expected_32);
+
+  return MUNIT_OK;
+}
+
 static MunitResult encodes_vector_u8(const MunitParameter params[], void* data) {
 
   uint8_t* expected_result;
@@ -576,6 +799,10 @@ static MunitResult encodes_vector_u8(const MunitParameter params[], void* data) 
 
 static MunitTest test_suite_tests[] = {
   {
+    "[scale] encodes Fixed-Size integers",
+    encodes_fixed_size_integers
+  },
+  {
     "[scale] encodes Era",
     encodes_era
   },
@@ -592,8 +819,24 @@ static MunitTest test_suite_tests[] = {
     encodes_vector_u8
   },
   {
+    "[scale] encodes Option",
+    encodes_option
+  },
+  {
+    "[scale] encodes Vector",
+    encodes_vector
+  },
+  {
+    "[scale] encodes Enumeration",
+    encodes_enumeration
+  },
+  {
     "[address] generates generic",
     address_is_correct,
+  },
+  {
+    "[address] generates pair from seed",
+    generates_address_from_seed
   },
   {
     "[address] generates polkadot",
@@ -602,6 +845,10 @@ static MunitTest test_suite_tests[] = {
   {
     "[address] handles unknown chain",
     fails_for_unknown_chain
+  },
+  {
+    "[address] verifies address",
+    verify_address
   },
   {
     "[transaction] constructs BalanceTransferFunction correctly",

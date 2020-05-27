@@ -10,9 +10,9 @@
 #define SIZE_SPEC 4         // length of the specVersion field in bytes
 
 enum Chain {
-    polkadot=0, 
-    kusama=2, 
-    generic=42
+    POLKADOT=0, 
+    KUSAMA=2, 
+    GENERIC=42
 };
 
 // -------------------

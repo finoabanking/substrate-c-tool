@@ -7,18 +7,22 @@
 // it also shows how to decode the address to the corresponding public key
 int main() {
     
-    generate_Alices_test_keypair();
+    // generate random seed
+    uint8_t seed[32];
+    SUBSTRATE_RANDOMBYTES_BUFFER(seed, 32);
 
     size_t address_len;
     uint8_t *address = NULL;
-    if (ss58_encode(&address, &address_len, Alice.public_key, generic) != 0)
+    uint8_t *privkey = NULL;
+    size_t privkey_len;
+    if (ss58_encode_from_seed(&address, &address_len, &privkey, &privkey_len, seed, GENERIC) != 0)
         exit(1);
 
     printf("Substrate address: %s\n", address);
 
     size_t decoded_address_buf = 64;
     uint8_t decoded_address[decoded_address_buf];
-    ss58_decode(decoded_address, address, &decoded_address_buf);
+    ss58_decode(decoded_address, address, &decoded_address_buf, GENERIC);
     printf("Public key:\n");
     for (int i=0; i < decoded_address_buf; i++) {
         printf("%02x", decoded_address[i]);

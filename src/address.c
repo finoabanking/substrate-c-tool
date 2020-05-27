@@ -1,5 +1,26 @@
 #include "substrate-address.h"
 
+// generates a new keypair from a seed
+uint8_t generate_keypair(uint8_t *pk, uint8_t *sk, const uint8_t *seed) {
+    return SUBSTRATE_GENERATE_KEYPAIR(pk, sk, seed);
+}
+
+uint8_t ss58_encode_from_seed(uint8_t **address, size_t* addrlen, uint8_t **privkey, size_t *privkeylen, const uint8_t *seed, enum Chain addr_type) {
+
+    uint8_t pk[ADDRESS_LEN];
+    uint8_t sk[ADDRESS_LEN];
+    if ( generate_keypair(pk, sk, seed) == 0) {
+        if ( ss58_encode(address, addrlen, pk, addr_type) == 0 ) {
+            // success. also make available the private key
+            *privkeylen = ADDRESS_LEN;
+            *privkey = SUBSTRATE_MALLOC(*privkeylen);
+            SUBSTRATE_MEMCPY(*privkey, sk, *privkeylen);
+            return 0;
+        }
+    }
+    return 1;
+}
+
 // computes the `checksum` of a substrate address
 // @return 0 when success
 // @param `checksum` is a pre-allocated byte array with size 2
@@ -32,22 +53,14 @@ uint8_t compute_address_checksum(uint8_t* checksum, const uint8_t *pubkey, const
 // @param `address` 
 // @param `addrlen` is the length of the returned address
 // @param `pubkey` is the account ID to encode. It is assumed of length ADDRESS_LEN as per specification
-// @param `chain_id` is the ID of the target chain
-uint8_t ss58_encode(uint8_t **address, size_t* addrlen, const uint8_t *pubkey, enum Chain chain_id) {
+// @param `addr_type` is the ID of the target chain
+uint8_t ss58_encode(uint8_t **address, size_t* addrlen, const uint8_t *pubkey, enum Chain addr_type) {
     
     *addrlen = 0;
     if (*address)
         return 1;
 
-    uint8_t addr_type;
-
-    if (chain_id == generic)
-        addr_type = 0x2a;
-    else if (chain_id == polkadot)
-        addr_type = 0x00;
-    else if (chain_id == kusama)
-        addr_type = 0x02;
-    else
+    if (! ( (addr_type == GENERIC) || (addr_type == POLKADOT) || (addr_type == KUSAMA) ) )
         return 1;
     
     const uint8_t prefix[7] = {0x53, 0x53, 0x35, 0x38, 0x50, 0x52, 0x45}; //  (the string SS58PRE)
@@ -89,7 +102,8 @@ uint8_t ss58_encode(uint8_t **address, size_t* addrlen, const uint8_t *pubkey, e
 // @param `address` is the SS-58-encoded address
 // @param `out` contains the decoded value
 // @param `out_len` is the number of bytes written in `out`
-uint8_t ss58_decode(uint8_t* out, const uint8_t *address, size_t *out_len) {
+// @param `addr_type` is the ID of the target chain
+uint8_t ss58_decode(uint8_t* out, const uint8_t *address, size_t *out_len, enum Chain addr_type) {
 
     const size_t buf_size = 64; // total size of the buffer
     size_t buf_used = buf_size; // part of the buffer that is used
@@ -158,6 +172,19 @@ uint8_t ss58_decode(uint8_t* out, const uint8_t *address, size_t *out_len) {
             break;
         }
 
+        // verify address-type (it's the first byte)
+        if (decoded[0] != addr_type)
+            return 1;
+
+        // verify that public key is a valid ed25519 point
+        if (buf_used == 35 && checksum_len == 2) { // (only if address is using account ID)
+            if (SUBSTRATE_ISVALIDPOINT(&decoded[1]) != 1) { // account ID starts at position 1
+                SUBSTRATE_PRINTF("Invalid point\n");
+                return 1;
+            }
+        }
+
+        // verify checksum
         if (checksum_len > 0) {
             // compute checksum
             size_t digest_size = 64; // using blake2-512

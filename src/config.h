@@ -26,6 +26,16 @@
 #define SUBSTRATE_BASE58ENC(a, b, c, d)
 // provide a function that does printf
 #define SUBSTRATE_PRINTF(...)
+// provide a function that generates a keypair (secret and public key)
+#define SUBSTRATE_GENERATE_KEYPAIR(a, b, c)
+// provide a function that verifies that pointer `a` is on ed25519
+// returns 1 if is on the curve, 0 otherwise
+#define SUBSTRATE_ISVALIDPOINT(a) 
+// provide a function that writes `b` random bytes in buffer `a`
+#define SUBSTRATE_RANDOMBYTES_BUFFER(a, b)
+// provide a function that signs a payload
+// the signature is the same of crypto_sign_detached from sodium library
+#define SUBSTRATE_CRYPTO_SIGN(a, b, c, d, e)
 
 #else // an example of configuration
     #include <string.h>
@@ -45,7 +55,11 @@
     #define SUBSTRATE_MEMSET(a, b, c)           memset(a, b, c)
     #define SUBSTRATE_BASE58TOBIN(a, b, c, d)   b58tobin((void*) a, b, (const char*) c, d)
     #define SUBSTRATE_BASE58ENC(a, b, c, d)     b58enc((char*)a, b, (void*) c, d)
-    #define SUBSTRATE_PRINTF(...)               printf(__VA_ARGS__) 
+    #define SUBSTRATE_PRINTF(...)               printf(__VA_ARGS__)
+    #define SUBSTRATE_GENERATE_KEYPAIR(a, b, c) crypto_sign_seed_keypair(a, b, c)
+    #define SUBSTRATE_ISVALIDPOINT(a)           crypto_core_ed25519_is_valid_point(a)
+    #define SUBSTRATE_RANDOMBYTES_BUFFER(a, b)  randombytes_buf(a, b)
+    #define SUBSTRATE_CRYPTO_SIGN(a, b, c, d,e) crypto_sign_detached(a, b, c, d, e)
 #endif // DEFAULT_CONFIG
 
 #endif // SUBSTRATE_CONFIG_H
