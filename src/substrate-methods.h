@@ -3,9 +3,14 @@
 #ifndef SUBSTRATE_METHODS_H
 #define SUBSTRATE_METHODS_H
 
-// Signed Extrinsic (transaction)
+// keypair used for signing
+typedef struct {
+    // first 32 bytes are the private key, last 32 bytes are the corresponding public key
+    uint8_t sk[2*ADDRESS_LEN];
+} SubstrateKeypair;
+uint8_t get_keypair(const uint8_t *priv_key, SubstrateKeypair *keypair);
 
-uint8_t sign_transfer_with_secret(uint8_t **transaction, size_t *transaction_len, const uint8_t *from_addr, const SubstrateTransaction *transaction_data, const SubstrateRuntime *runtime, const SubstrateBlock *current_block);
+uint8_t sign_transfer_with_secret(uint8_t **transaction, size_t *transaction_len, const SubstrateKeypair *keypair, const SubstrateTransaction *transaction_data, const SubstrateRuntime *runtime, const SubstrateBlock *current_block);
 
 // helpers
 

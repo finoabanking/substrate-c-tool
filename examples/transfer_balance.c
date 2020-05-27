@@ -7,8 +7,8 @@
 // this example shows how to generate a signed extrinsic containing a balance transfer
 // the resulting hex array is ready to be submitted to the JSON RPC author_submitExtrinsic
 int main() {
-    
-    generate_Alices_test_keypair();
+    SubstrateKeypair keypair;
+    generate_Alices_test_keypair(&keypair);
 
     // init a runtime
     SubstrateRuntime kusamaRuntime;
@@ -40,7 +40,7 @@ int main() {
     SUBSTRATE_MEMCPY(current_block.hash, block_hash, SIZE_HASH_256);
     current_block.number = 0;
 
-    if ( sign_transfer_with_secret(&transaction, &transaction_len, Alice.private_key, &transaction_data, &kusamaRuntime, &current_block) > 0 ) {
+    if ( sign_transfer_with_secret(&transaction, &transaction_len, &keypair, &transaction_data, &kusamaRuntime, &current_block) > 0 ) {
         printf("Error signing the extrinsic!!\n");
         return 1;
     } else {

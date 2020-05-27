@@ -400,7 +400,8 @@ static MunitResult generates_address_from_seed(const MunitParameter params[], vo
 static MunitResult address_is_correct(const MunitParameter params[], void* data) {
 
   size_t address_len;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
   uint8_t* address = NULL;
   ss58_encode(&address, &address_len, Alice.public_key, GENERIC);
   munit_assert_memory_equal(address_len, address, "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpu");
@@ -413,7 +414,8 @@ static MunitResult verify_address(const MunitParameter params[], void* data) {
   uint8_t address[] = "5FA9nQDVg267DEd8m1ZypXLBnvN7SFxYwV7ndqSYGiN9TTpu";
   uint8_t result;
 
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
 
   // must fail because buffer is not allocated
   uint8_t *out = NULL;
@@ -454,7 +456,8 @@ static MunitResult generates_polkadot_address(const MunitParameter params[], voi
 
   uint8_t* address = NULL;
   size_t address_len;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
   uint8_t expected[] = "146SvjUZXoMaemdeiecyxgALeYMm8ZWh1yrGo8RtpoPfe7WL";
   ss58_encode(&address, &address_len, Alice.public_key, POLKADOT);
 
@@ -467,7 +470,9 @@ static MunitResult fails_for_unknown_chain(const MunitParameter params[], void* 
 
   size_t address_len;
   uint8_t *address = NULL;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
   ss58_encode(&address, &address_len, Alice.public_key, -1);
   munit_assert_null((char*) address);
   return MUNIT_OK;
@@ -476,7 +481,9 @@ static MunitResult fails_for_unknown_chain(const MunitParameter params[], void* 
 static MunitResult constructs_balance_transfer_function(const MunitParameter params[], void* data) { 
 
   size_t len;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
   const uint8_t* expected_result = hexstring_to_array("040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee00", &len);
   SubstrateTransaction transaction_data;
   size_t call_len;
@@ -507,7 +514,9 @@ static MunitResult constructs_balance_transfer_function(const MunitParameter par
 static MunitResult constructs_transaction_payload(const MunitParameter params[], void* data) { 
 
   size_t len;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
   const uint8_t* expected_result = hexstring_to_array("040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee000004001f040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe", &len);
   SubstrateTransaction transaction_data;
   size_t payload_len;
@@ -539,7 +548,9 @@ static MunitResult constructs_transaction_payload(const MunitParameter params[],
 static MunitResult constructs_transaction_info(const MunitParameter params[], void* data) { 
 
   size_t len;
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
   const uint8_t* expected_result = hexstring_to_array("88dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee0015999702d5a1580bf8e7961385e3e487cbc462d2e553d5df100bbc48b1b1f1d18f9c2cc66a220c68f8e6bdec7357aa4da917e6d70c8f799ac1329a85a7100509000400", &len);
   size_t transaction_info_len;
   uint8_t* result;
@@ -593,7 +604,9 @@ static MunitResult constructs_extrinsic(const MunitParameter params[], void* dat
 
 static MunitResult signs_transaction_v4(const MunitParameter params[], void* data) {
 
-  generate_Alices_test_keypair();
+  SubstrateKeypair keypair;
+  generate_Alices_test_keypair(&keypair);
+
   const uint8_t* expected_result;
   SubstrateTransaction* transaction_data;
   uint8_t* transaction;
@@ -613,7 +626,7 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   uint8_t tip[1] = {0x00};
   mock_transaction(transaction_data, amount, 1, nonce, 1, tip, 1, KUSAMA, 4, Alice.public_key);
 
-  sign_transfer_with_secret(&transaction, &transaction_len, Alice.private_key, transaction_data, &kusamaRuntime, &current_block);
+  sign_transfer_with_secret(&transaction, &transaction_len, &keypair, transaction_data, &kusamaRuntime, &current_block);
   munit_assert_memory_equal(transaction_len, transaction, expected_result);
   SUBSTRATE_FREE(expected_result);
   SUBSTRATE_FREE(transaction);
@@ -626,7 +639,7 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   uint8_t amount2[2] = {0x45};
   uint8_t nonce2[1] = {0x04};
   mock_transaction(transaction_data, amount2, 2, nonce2, 1, tip, 1, KUSAMA, 4, Alice.public_key);
-  sign_transfer_with_secret(&transaction, &transaction_len, Alice.private_key, transaction_data, &kusamaRuntime, &current_block);
+  sign_transfer_with_secret(&transaction, &transaction_len, &keypair, transaction_data, &kusamaRuntime, &current_block);
 
   munit_assert_memory_equal(transaction_len, transaction, expected_result);
   SUBSTRATE_FREE(expected_result);
@@ -640,7 +653,7 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   uint8_t amount3[9] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
   uint8_t nonce3[1] = {0x00};
   mock_transaction(transaction_data, amount3, 9, nonce3, 1, tip, 1, KUSAMA, 4, Alice.public_key);
-  sign_transfer_with_secret(&transaction, &transaction_len, Alice.private_key, transaction_data, &kusamaRuntime, &current_block);
+  sign_transfer_with_secret(&transaction, &transaction_len, &keypair, transaction_data, &kusamaRuntime, &current_block);
 
   munit_assert_memory_equal(transaction_len, transaction, expected_result);
 

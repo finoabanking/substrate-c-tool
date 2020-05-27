@@ -241,6 +241,27 @@ uint8_t validate_runtime(const SubstrateRuntime *runtime) {
     return 1;
 }
 
+uint8_t get_keypair(const uint8_t *priv_key, SubstrateKeypair *keypair) {
+#ifdef DEFAULT_CONFIG
+    if (sodium_init() < 0) {
+        /* panic! the library couldn't be initialized, it is not safe to use */
+        return 1;
+    }
+    // establish keypair
+    unsigned char sender[crypto_sign_PUBLICKEYBYTES];
+    unsigned char sk[crypto_sign_SECRETKEYBYTES];
+    unsigned char * seed = SUBSTRATE_MALLOC(crypto_sign_SEEDBYTES);
+    SUBSTRATE_MEMCPY(seed, priv_key, ADDRESS_LEN);
+    crypto_sign_seed_keypair(sender, sk, seed);
+    SUBSTRATE_MEMCPY(keypair->sk, sk, crypto_sign_SECRETKEYBYTES);
+    SUBSTRATE_MEMSET(seed, 0, ADDRESS_LEN);
+    free(seed);
+#else
+    // provide a crypto library with digital signature
+    exit(1);
+#endif
+}
+
 // Signs a transaction with a private key, outputs the raw bytes
 // @return 0/1 in case of success/failure
 // @param `transaction` the byte array that will contain the signed transaction. must be initialized to NULL
@@ -249,7 +270,7 @@ uint8_t validate_runtime(const SubstrateRuntime *runtime) {
 // @param `transaction_data` the transaction to be signed. is validated internally
 // @param `runtime` the Substrate Runtime in use. is validated internally
 // @param `current_block` is the block to be used as a checkpoint for the transaction validity
-uint8_t sign_transfer_with_secret(uint8_t **transaction, size_t *transaction_len, const uint8_t *from_addr, const SubstrateTransaction *transaction_data, const SubstrateRuntime *runtime, const SubstrateBlock *current_block) {
+uint8_t sign_transfer_with_secret(uint8_t **transaction, size_t *transaction_len, const SubstrateKeypair *keypair, const SubstrateTransaction *transaction_data, const SubstrateRuntime *runtime, const SubstrateBlock *current_block) {
 
     size_t call_len, payload_len, transaction_info_len, extrinsic_len;
     const uint8_t* transaction_payload = NULL;
@@ -258,25 +279,8 @@ uint8_t sign_transfer_with_secret(uint8_t **transaction, size_t *transaction_len
     uint8_t* extrinsic = NULL;
     uint8_t res = 1;
     *transaction = NULL;
+    uint8_t signature[SIGNATURE_LEN];
 
-#ifdef DEFAULT_CONFIG
-    unsigned char signature[crypto_sign_BYTES];
-    if (sodium_init() < 0) {
-        /* panic! the library couldn't be initialized, it is not safe to use */
-        return res;
-    }
-    // establish keypair
-    unsigned char sender[crypto_sign_PUBLICKEYBYTES];
-    unsigned char sk[crypto_sign_SECRETKEYBYTES];
-    unsigned char * seed = calloc(crypto_sign_SEEDBYTES, sizeof(unsigned char));
-    memcpy(seed, from_addr, ADDRESS_LEN);
-    crypto_sign_seed_keypair(sender, sk, seed);
-    SUBSTRATE_MEMSET(seed, 0, ADDRESS_LEN);
-    free(seed);
-#else
-    // provide a crypto library with digital signature
-    exit(1);
-#endif
     if ((validate_transaction_data(transaction_data) == 0) && (validate_runtime(runtime) == 0) ) {
         // from this point `transaction_data` and `runtime` are trusted
         call = construct_BalanceTransferFunction(transaction_data, runtime, &call_len);
@@ -285,15 +289,10 @@ uint8_t sign_transfer_with_secret(uint8_t **transaction, size_t *transaction_len
 
         if ((transaction_payload) && (payload_len > 0)) {
             // sign transaction_payload
-#ifdef DEFAULT_CONFIG
-            crypto_sign_detached(signature, NULL, transaction_payload, payload_len, sk);
-            SUBSTRATE_MEMSET(sk, 0, crypto_sign_SECRETKEYBYTES);
-#else
-            // ecsda_sign ...
-#endif
+            SUBSTRATE_CRYPTO_SIGN(signature, NULL, transaction_payload, payload_len, keypair->sk);
 
             // `call` and `signature` are valid. construct the final Extrinsic
-            transaction_info = construct_TransactionInfo(transaction_data, sender, signature, &transaction_info_len);
+            transaction_info = construct_TransactionInfo(transaction_data, &keypair->sk[ADDRESS_LEN], signature, &transaction_info_len);
             if ((transaction_info) && (transaction_info_len > 0)) {
                 extrinsic_len = get_extrinsic_length(transaction_info_len, call_len);
                 

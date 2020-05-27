@@ -33,6 +33,9 @@
 #define SUBSTRATE_ISVALIDPOINT(a) 
 // provide a function that writes `b` random bytes in buffer `a`
 #define SUBSTRATE_RANDOMBYTES_BUFFER(a, b)
+// provide a function that signs a payload
+// the signature is the same of crypto_sign_detached from sodium library
+#define SUBSTRATE_CRYPTO_SIGN(a, b, c, d, e)
 
 #else // an example of configuration
     #include <string.h>
@@ -56,6 +59,7 @@
     #define SUBSTRATE_GENERATE_KEYPAIR(a, b, c) crypto_sign_seed_keypair(a, b, c)
     #define SUBSTRATE_ISVALIDPOINT(a)           crypto_core_ed25519_is_valid_point(a)
     #define SUBSTRATE_RANDOMBYTES_BUFFER(a, b)  randombytes_buf(a, b)
+    #define SUBSTRATE_CRYPTO_SIGN(a, b, c, d,e) crypto_sign_detached(a, b, c, d, e)
 #endif // DEFAULT_CONFIG
 
 #endif // SUBSTRATE_CONFIG_H
