@@ -19,6 +19,7 @@ enum ScaleTypes {
     type_bool,
     type_option,
     type_vector,
+    type_enumeration,
     type_invalid // this should always be the last element
 };
 
@@ -36,12 +37,19 @@ typedef struct {
     uint8_t *value;
 } ScaleOption;
 
-// SCALE Option
+// SCALE Vector
 typedef struct {
     size_t length;
     uint8_t type;
     uint8_t *value;
 } ScaleVector;
+
+// SCALE Enumeration (tagged-union)
+typedef struct {
+    size_t length;
+    uint8_t type;
+    uint8_t *value;
+} ScaleEnumeration;
 
 // SCALE Compact
 typedef struct {
@@ -74,10 +82,11 @@ typedef struct {
         Era era;
         ScaleOption option;
         ScaleVector vector;
+        ScaleEnumeration enumeration;
     } elem;
 } ScaleElem;
 
-// Functions
+
 uint8_t encode_scale(ScaleElem* encoded_value, uint8_t* value, size_t value_len, enum ScaleTypes type);
 uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, size_t value_len, const ScaleElem** elements, size_t elements_len, enum ScaleTypes type);
 void encode_scale_fixint_u8(ScaleElem *elem, uint8_t value);
@@ -94,9 +103,8 @@ uint8_t as_scale_vector_u8(uint8_t* encoded_value, size_t encoded_value_len, uin
 uint8_t contains_scale(const ScaleElem *el);
 uint8_t as_option(const ScaleElem *el, ScaleElem *el_option);
 size_t get_option_size(const ScaleElem *el);
-size_t get_vector_size(const ScaleElem** elements, const uint32_t elements_len);
-
-// Internals
+size_t get_vector_size(const ScaleElem** elements, uint32_t elements_len);
+size_t get_enumeration_size(const ScaleElem** elements, uint8_t elements_len);
 void uint_as_compact(Compact *compact, uint32_t value);
 
 #define is_bigendian (!*(uint8_t *)&(uint16_t){1})

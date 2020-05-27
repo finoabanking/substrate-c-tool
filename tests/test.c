@@ -157,18 +157,60 @@ static MunitResult encodes_vector(const MunitParameter params[], void* data) {
   size_t vector_size = get_vector_size(elements, 3);
   uint8_t value[vector_size];
 
-  //encode the vector!
+  // encode the vector!
   ScaleElem vector_of_compacts;
   uint8_t encoded = encode_composite_scale(&vector_of_compacts, value, vector_size, elements, 3, type_vector);
   munit_assert(encoded == 0);
+  munit_assert(vector_of_compacts.elem.vector.length == 8);
   uint8_t expected[] = {
-    0x0c, 
-    0x00, 0x04, 
-    0x00, 0x05, 
-    0x08, 0x00};
-  munit_assert_memory_equal(7, vector_of_compacts.elem.vector.value, expected);
+    0x0c, // there are three elements
+    0x04, // first
+    0x05, 0x08, // second
+    0x06, 0x08, 0x0c, 0x00 // third
+    };
+  munit_assert_memory_equal(vector_of_compacts.elem.vector.length, vector_of_compacts.elem.vector.value, expected);
 
   return MUNIT_OK;
+}
+
+static MunitResult encodes_enumeration(const MunitParameter params[], void* data) {
+  // first prepare a collection of SCALEs
+  // in this test we have one boolean and two compacts
+  ScaleElem bool1;
+  uint8_t value1[1] = {0x01};
+  encode_scale(&bool1, value1, 1, type_bool);
+  ScaleElem compact2;
+  uint8_t value2[2] = {0x01, 0x02};
+  encode_scale(&compact2, value2, 2, type_compact);
+  ScaleElem compact3;
+  uint8_t value3[3] = {0x01, 0x02, 0x03};
+  encode_scale(&compact3, value3, 3, type_compact);
+
+  const ScaleElem *elements[3];
+  elements[0] = &bool1;
+  elements[1] = &compact2;
+  elements[2] = &compact3;
+  // collection is ready
+
+  // allocate the enumeration
+  size_t vector_size = get_enumeration_size(elements, 3);
+  uint8_t value[vector_size];
+
+  // encode to enumeration
+  ScaleElem enumeration;
+  uint8_t encoded = encode_composite_scale(&enumeration, value, vector_size, elements, 3, type_enumeration);
+  munit_assert(encoded == 0);
+  munit_assert(enumeration.elem.enumeration.length == 10);
+  uint8_t expected[] = {
+    0x00, // first element index
+    0x01, // first element
+    0x01, // second element index
+    0x05, 0x08, // second element
+    0x02, // third element index
+    0x06, 0x08, 0x0c, 0x00 // third element
+    };
+  munit_assert_memory_equal(enumeration.elem.vector.length, enumeration.elem.vector.value, expected);
+
 }
 
 static MunitResult encodes_era(const MunitParameter params[], void* data) {
@@ -728,6 +770,10 @@ static MunitTest test_suite_tests[] = {
   {
     "[scale] encodes Vector",
     encodes_vector
+  },
+  {
+    "[scale] encodes Enumeration",
+    encodes_enumeration
   },
   {
     "[address] generates generic",

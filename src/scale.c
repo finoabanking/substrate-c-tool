@@ -96,28 +96,29 @@ uint8_t as_option(const ScaleElem *el, ScaleElem *el_option) {
 }
 
 // returns the size of the array to be allocated for the SCALE vector
-size_t get_vector_size(const ScaleElem** elements, const uint32_t elements_len) {
+size_t get_vector_size(const ScaleElem** elements, uint32_t elements_len) {
 
     if (!elements || elements_len == 0) {
         return 0;
     }
 
-    size_t result = 0;
+    // first of all encode `elements_len` to SCALE compact
+    Compact prefix;
+    uint_as_compact(&prefix, elements_len);
+
+    size_t result = prefix.length;
     if (!elements[0])
         return 0;
 
     uint8_t t = elements[0]->type;
+    uint8_t scale_len;
     for (uint32_t i=0; i<elements_len; i++) {
         if (elements[i]) {
             if (elements[i]->type != t)
                 return 0; // different type
 
             // encode value
-            uint8_t scale_len = get_scale_length(elements[i]);
-            uint8_t encoded[scale_len];
-            if (get_scale_value(elements[i], encoded, scale_len) > 0)
-                return 0;
-
+            scale_len = get_scale_length(elements[i]);
             result += scale_len;
         }
     }
@@ -141,6 +142,9 @@ uint8_t as_scale_vector(ScaleElem* encoded_value, const ScaleElem** elements, co
     uint8_t scale_len = prefix.length;
 
     // write prefix as prefix
+    if (prefix.value > encoded_value->elem.vector.value)
+        return 1;
+
     SUBSTRATE_MEMCPY(encoded_value->elem.vector.value, prefix.value, scale_len);
     pos += scale_len;
 
@@ -164,17 +168,91 @@ uint8_t as_scale_vector(ScaleElem* encoded_value, const ScaleElem** elements, co
                 if (get_scale_value(elements[i], encoded, scale_len) > 0)
                     return 1;
 
-                pos += scale_len;
-
-                if (pos > encoded_value->elem.vector.length + scale_len)
+                if (pos + scale_len > encoded_value->elem.vector.length)
                     return 1; // this should not happen
 
                 SUBSTRATE_MEMCPY(&encoded_value->elem.vector.value[pos], encoded, scale_len);
+                pos += scale_len;
             }
         }
         return 0;
     }
     return 1;
+}
+
+// returns the size of the array to be allocated for the SCALE enumeration
+size_t get_enumeration_size(const ScaleElem** elements, uint8_t elements_len) {
+
+    if (!elements || elements_len == 0) {
+        return 0;
+    }
+
+    size_t result = 0;
+    if (!elements[0])
+        return 0;
+
+    uint8_t scale_len;
+    for (uint32_t i=0; i<elements_len; i++) {
+        if (elements[i]) {
+
+            // encode value
+            scale_len = get_scale_length(elements[i]);
+            result += 1; // make space for the index
+            result += scale_len;
+        }
+    }
+    return result;
+}
+
+
+// receives a collection of SCALE encoded elements and encodes them as a SCALE enumeration (tagged-union)
+// @param `encoded_value` contains the resulting SCALE enumeration
+// @param `value` points to a pre-allocated buffer of size `value_len`.
+// @param `value_len` is given by the function get_vector_size
+// @param `elements` is the collection of elements to be encoded in the vector
+// @param `elements_len` is the quantity of elements
+// @param `type` is the SCALE type of elements (they are not required to belong to the same type)
+uint8_t as_scale_enumeration(ScaleElem* encoded_value, const ScaleElem** elements, const uint32_t elements_len) {
+
+    size_t pos = 0;
+
+    if (elements_len > 256)
+        return 1; // no more than 256 variants are supported (by specification)
+
+    if (encoded_value && elements_len) {
+        
+        if (!elements[0])
+            return 1;
+
+        for (uint8_t i = 0; i < elements_len; i++) {
+            if (elements[i]) {
+
+                // encode value
+                uint8_t scale_len = get_scale_length(elements[i]);
+                if (scale_len == 0)
+                    return 1;
+
+                uint8_t encoded[scale_len];
+                if (get_scale_value(elements[i], encoded, scale_len) > 0)
+                    return 1;
+
+                // write index
+                if (pos + 1 > encoded_value->elem.vector.length)
+                    return 1; // this should not happen
+
+                encoded_value->elem.vector.value[pos++] = i;
+
+                if (pos + scale_len > encoded_value->elem.vector.length)
+                    return 1; // this should not happen
+
+                SUBSTRATE_MEMCPY(&encoded_value->elem.vector.value[pos], encoded, scale_len);
+                pos += scale_len;
+
+            }
+        }
+        return 0;
+    }
+    return 1;    
 }
 
 // encode uint_8 to SCALE Fixed-Size Integer
@@ -425,6 +503,17 @@ uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, size_t 
                 return 0;
             }            
         }
+    } else if (type == type_enumeration) {
+        if (elements_len > 0 && value_len > 0) {
+            encoded_value->type = type_enumeration;
+            encoded_value->elem.option.type = type_enumeration;
+            encoded_value->elem.option.length = value_len;
+            SUBSTRATE_MEMSET(value, 0, value_len);
+            encoded_value->elem.option.value = value;
+            if (as_scale_enumeration(encoded_value, elements, elements_len) == 0) {
+                return 0;
+            }            
+        }        
     }
 
     return 1;
