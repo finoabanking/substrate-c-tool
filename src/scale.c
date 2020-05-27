@@ -7,7 +7,7 @@
 void print_scale(ScaleElem* scale_elem) {
     
     if (scale_elem) {
-        uint8_t length = get_scale_length(scale_elem);
+        uint32_t length = get_scale_length(scale_elem);
         if (length > 0) {
             SUBSTRATE_PRINTF("0x");
             uint8_t scale_value[length];
@@ -39,7 +39,9 @@ uint8_t contains_scale(const ScaleElem *el) {
     return 0;
 }
 
-size_t get_option_size(const ScaleElem *el) {
+// returns the size of SCALE option array
+// @param `el` pointer to the ScaleElem to be made optional
+uint32_t get_option_size(const ScaleElem *el) {
 
     if (!el) {
         return 1;
@@ -47,6 +49,7 @@ size_t get_option_size(const ScaleElem *el) {
         return 1;
     } else {
         return get_scale_length(el)+1;
+        // note that returns 0 in case of overflow
     }
 }
 
@@ -86,7 +89,7 @@ uint8_t as_option(const ScaleElem *el, ScaleElem *el_option) {
     // any other type: 0x01 followed by the encoded value
     el_option->elem.option.value[0] = 0x01; // first byte
     // concatenate the rest
-    uint8_t value_len = get_scale_length(el);
+    uint32_t value_len = get_scale_length(el);
     uint8_t value[value_len];
     if (get_scale_value(el, value, value_len) == 0) {
         SUBSTRATE_MEMCPY(&el_option->elem.option.value[1], value, value_len);
@@ -96,7 +99,9 @@ uint8_t as_option(const ScaleElem *el, ScaleElem *el_option) {
 }
 
 // returns the size of the array to be allocated for the SCALE vector
-size_t get_vector_size(const ScaleElem** elements, uint32_t elements_len) {
+// @param `elements` points to an array of ScaleElem of the same type
+// @param `elements_len` the amount of `elements`
+uint32_t get_vector_size(const ScaleElem** elements, uint32_t elements_len) {
 
     if (!elements || elements_len == 0) {
         return 0;
@@ -106,7 +111,7 @@ size_t get_vector_size(const ScaleElem** elements, uint32_t elements_len) {
     Compact prefix;
     uint_as_compact(&prefix, elements_len);
 
-    size_t result = prefix.length;
+    uint32_t result = prefix.length;
     if (!elements[0])
         return 0;
 
@@ -134,7 +139,7 @@ size_t get_vector_size(const ScaleElem** elements, uint32_t elements_len) {
 // @param `type` is the SCALE type of elements (they must all belong to the same type)
 uint8_t as_scale_vector(ScaleElem* encoded_value, const ScaleElem** elements, const uint32_t elements_len) {
 
-    size_t pos = 0;
+    uint32_t pos = 0;
 
     // first of all encode `elements_len` to SCALE compact
     Compact prefix;
@@ -160,7 +165,7 @@ uint8_t as_scale_vector(ScaleElem* encoded_value, const ScaleElem** elements, co
                     return 1; // different type
 
                 // encode value
-                uint8_t scale_len = get_scale_length(elements[i]);
+                uint32_t scale_len = get_scale_length(elements[i]);
                 if (scale_len == 0)
                     return 1;
 
@@ -181,13 +186,15 @@ uint8_t as_scale_vector(ScaleElem* encoded_value, const ScaleElem** elements, co
 }
 
 // returns the size of the array to be allocated for the SCALE enumeration
-size_t get_enumeration_size(const ScaleElem** elements, uint8_t elements_len) {
+// @param `elements` points to an array of ScaleElem
+// @param `elements_len` the amount of `elements`
+uint32_t get_enumeration_size(const ScaleElem** elements, uint8_t elements_len) {
 
     if (!elements || elements_len == 0) {
         return 0;
     }
 
-    size_t result = 0;
+    uint32_t result = 0;
     if (!elements[0])
         return 0;
 
@@ -214,7 +221,7 @@ size_t get_enumeration_size(const ScaleElem** elements, uint8_t elements_len) {
 // @param `type` is the SCALE type of elements (they are not required to belong to the same type)
 uint8_t as_scale_enumeration(ScaleElem* encoded_value, const ScaleElem** elements, const uint32_t elements_len) {
 
-    size_t pos = 0;
+    uint32_t pos = 0;
 
     if (elements_len > 256)
         return 1; // no more than 256 variants are supported (by specification)
@@ -256,6 +263,8 @@ uint8_t as_scale_enumeration(ScaleElem* encoded_value, const ScaleElem** element
 }
 
 // encode uint_8 to SCALE Fixed-Size Integer
+// @param `elem` to be filled
+// @param `value` the value to encode
 void encode_scale_fixint_u8(ScaleElem *elem, uint8_t value) {
 
     elem->type = uint8_scale_t;
@@ -266,6 +275,8 @@ void encode_scale_fixint_u8(ScaleElem *elem, uint8_t value) {
 }
 
 // encode uint_16 to SCALE Fixed-Size Integer
+// @param `elem` to be filled
+// @param `value` the value to encode
 void encode_scale_fixint_u16(ScaleElem *elem, uint16_t value) {
 
     elem->type = uint16_scale_t;
@@ -283,6 +294,8 @@ void encode_scale_fixint_u16(ScaleElem *elem, uint16_t value) {
 }
 
 // encode uint_32 to SCALE Fixed-Size Integer
+// @param `elem` to be filled
+// @param `value` the value to encode
 void encode_scale_fixint_u32(ScaleElem *elem, uint32_t value) {
 
     elem->type = uint32_scale_t;
@@ -415,8 +428,8 @@ uint8_t as_scale_vector_u8(uint8_t* encoded_value, size_t encoded_value_len, uin
 // gets the length of the value of ScaleElem
 // @return the length or 0 in case of failure
 // @param `scale_elem` points to a SCALE struct
-uint8_t get_scale_length(const ScaleElem *scale_elem) {
-    uint8_t length = 0;
+uint32_t get_scale_length(const ScaleElem *scale_elem) {
+    uint32_t length = 0;
     if (scale_elem) {
         if (scale_elem->type == type_compact) {
             length = scale_elem->elem.compact.length;
@@ -424,6 +437,16 @@ uint8_t get_scale_length(const ScaleElem *scale_elem) {
             length = scale_elem->elem.boolean.length;
         } else if (scale_elem->type == type_era) {
             length = scale_elem->elem.era.length;
+        } else if ((scale_elem->type == uint8_scale_t) ||
+            (scale_elem->type == uint16_scale_t) ||
+            (scale_elem->type == uint32_scale_t) ) {
+            length = scale_elem->elem.fix_integer.length;
+        } else if (scale_elem->type == type_option) {
+            length = scale_elem->elem.option.length;
+        } else if (scale_elem->type == type_vector) {
+            length = scale_elem->elem.vector.length;
+        } else if (scale_elem->type == type_enumeration) {
+            length = scale_elem->elem.enumeration.length;
         }
     }
     return length;
@@ -448,15 +471,27 @@ enum ScaleTypes get_scale_type(const ScaleElem *scale_elem) {
 uint8_t get_scale_value(const ScaleElem* scale_elem, uint8_t* value, uint8_t value_len) {
 
     if ( (scale_elem != NULL) && (value != NULL) ) {
-        uint8_t scale_len = get_scale_length(scale_elem);
+        uint32_t scale_len = get_scale_length(scale_elem);
         if (value_len == scale_len) {
-            if (scale_elem->type == type_compact) {
+            if (scale_elem->type == type_invalid) {
+                return 1;
+            } if (scale_elem->type == type_compact) {
                 SUBSTRATE_MEMCPY(value, scale_elem->elem.compact.value, value_len);
             } else if (scale_elem->type == type_bool) {
                 ScaleBoolean b = scale_elem->elem.boolean;
                 SUBSTRATE_MEMCPY(value, &b.value, value_len);
             } else if (scale_elem-> type == type_era) {
                 SUBSTRATE_MEMCPY(value, scale_elem->elem.era.value, value_len);
+            } else if (scale_elem-> type == type_option) {
+                SUBSTRATE_MEMCPY(value, scale_elem->elem.option.value, value_len);
+            } else if (scale_elem-> type == type_vector) {
+                SUBSTRATE_MEMCPY(value, scale_elem->elem.vector.value, value_len);
+            } else if (scale_elem-> type == type_enumeration) {
+                SUBSTRATE_MEMCPY(value, scale_elem->elem.enumeration.value, value_len);
+            } else if ((scale_elem-> type == uint8_scale_t) || 
+                (scale_elem-> type == uint16_scale_t) ||
+                (scale_elem-> type == uint32_scale_t) ) {
+                SUBSTRATE_MEMCPY(value, scale_elem->elem.fix_integer.value, value_len);
             }
             return 0;
         } else SUBSTRATE_PRINTF("get_scale_value: value_len != scale_len\n");
@@ -476,7 +511,7 @@ void as_boolean(ScaleBoolean* result, uint8_t value) {
 }
 
 // encodes a collection of SCALE elements to a new SCALE element
-uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, size_t value_len, const ScaleElem** elements, size_t elements_len, enum ScaleTypes type) {
+uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, uint32_t value_len, const ScaleElem** elements, uint32_t elements_len, enum ScaleTypes type) {
 
     if (!encoded_value)
         return 1;
@@ -596,7 +631,7 @@ uint8_t encode_scale(ScaleElem* encoded_value, uint8_t* value, size_t value_len,
 uint8_t decode_scale(const ScaleElem *scale_elem, uint8_t *value, size_t *value_len) {
 
     size_t consumed;
-    uint8_t len;
+    uint32_t len;
     enum ScaleTypes t;
 
     if ((scale_elem != NULL) && (value != NULL)) {
