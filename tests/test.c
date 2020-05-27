@@ -97,8 +97,10 @@ static MunitResult encodes_option(const MunitParameter params[], void* data) {
   size = get_option_size(scale_elem);
   munit_assert(size == 1);
   ScaleElem option_null_elem;
-  uint8_t null_value[size];  
-  encode_composite_scale(&option_null_elem, null_value, size, &scale_elem, 1, type_option);
+  uint8_t null_value[size];
+  const ScaleElem *null_elements[1];
+  null_elements[0] = scale_elem;  
+  encode_composite_scale(&option_null_elem, null_value, size, null_elements, 1, type_option);
   uint8_t expected_null[1] = {0x00};
   munit_assert_memory_equal(1, option_null_elem.elem.option.value, expected_null);
 
@@ -110,7 +112,7 @@ static MunitResult encodes_option(const MunitParameter params[], void* data) {
   ScaleElem option_elem;
   uint8_t value_len = get_option_size(scale_elem);
   uint8_t value[value_len];
-  ScaleElem *elements[1];
+  const ScaleElem *elements[1];
   elements[0] = scale_elem;
   encoded = encode_composite_scale(&option_elem, value, value_len, elements, 1, type_option);
   uint8_t expected_bool[1] = {0x01};
@@ -124,13 +126,49 @@ static MunitResult encodes_option(const MunitParameter params[], void* data) {
   ScaleElem option_elem2;
   uint8_t optional_compact_len = get_option_size(&compact);
   uint8_t optional_value[optional_compact_len];
-  ScaleElem *compact_elements[1];
+  const ScaleElem *compact_elements[1];
   compact_elements[0] = &compact;
   encoded = encode_composite_scale(&option_elem2, optional_value, optional_compact_len, compact_elements, 1, type_option);
   munit_assert(encoded == 0);
   uint8_t expected_compact[2] = {0x01, 0x00};
   munit_assert_memory_equal(2, option_elem2.elem.option.value, expected_compact);  
 
+}
+
+static MunitResult encodes_vector(const MunitParameter params[], void* data) {
+  // first prepare a collection of compacts
+  ScaleElem compact1;
+  uint8_t value1[1] = {0x01};
+  encode_scale(&compact1, value1, 1, type_compact);
+  ScaleElem compact2;
+  uint8_t value2[2] = {0x01, 0x02};
+  encode_scale(&compact2, value2, 2, type_compact);
+  ScaleElem compact3;
+  uint8_t value3[3] = {0x01, 0x02, 0x03};
+  encode_scale(&compact3, value3, 3, type_compact);
+
+  const ScaleElem *elements[3];
+  elements[0] = &compact1;
+  elements[1] = &compact2;
+  elements[2] = &compact3;
+  // collection is ready
+  
+  // allocate the vector
+  size_t vector_size = get_vector_size(elements, 3);
+  uint8_t value[vector_size];
+
+  //encode the vector!
+  ScaleElem vector_of_compacts;
+  uint8_t encoded = encode_composite_scale(&vector_of_compacts, value, vector_size, elements, 3, type_vector);
+  munit_assert(encoded == 0);
+  uint8_t expected[] = {
+    0x0c, 
+    0x00, 0x04, 
+    0x00, 0x05, 
+    0x08, 0x00};
+  munit_assert_memory_equal(7, vector_of_compacts.elem.vector.value, expected);
+
+  return MUNIT_OK;
 }
 
 static MunitResult encodes_era(const MunitParameter params[], void* data) {
@@ -656,6 +694,10 @@ static MunitTest test_suite_tests[] = {
   {
     "[scale] encodes Option",
     encodes_option
+  },
+  {
+    "[scale] encodes Vector",
+    encodes_vector
   },
   {
     "[address] generates generic",

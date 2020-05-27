@@ -15,6 +15,7 @@ enum ScaleTypes {
     type_era,
     type_bool,
     type_option,
+    type_vector,
     type_invalid // this should always be the last element
 };
 
@@ -24,6 +25,13 @@ typedef struct {
     uint8_t type;
     uint8_t *value;
 } ScaleOption;
+
+// SCALE Option
+typedef struct {
+    size_t length;
+    uint8_t type;
+    uint8_t *value;
+} ScaleVector;
 
 // SCALE Compact
 typedef struct {
@@ -54,12 +62,13 @@ typedef struct {
         ScaleBoolean boolean;
         Era era;
         ScaleOption option;
+        ScaleVector vector;
     } elem;
 } ScaleElem;
 
 // Functions
 uint8_t encode_scale(ScaleElem* encoded_value, uint8_t* value, size_t value_len, enum ScaleTypes type);
-uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, size_t value_len, ScaleElem** elements, size_t elements_len, enum ScaleTypes type);
+uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, size_t value_len, const ScaleElem** elements, size_t elements_len, enum ScaleTypes type);
 uint8_t decode_stream(const uint8_t* encoded_value, uint8_t* decoded_value, size_t encoded_value_len, size_t *decoded_value_len, size_t *consumed, enum ScaleTypes type);
 uint8_t decode_scale(const ScaleElem *scale_elem, uint8_t *value, size_t *value_len);
 void print_scale(ScaleElem* scale_elem);
@@ -71,6 +80,7 @@ uint8_t as_scale_vector_u8(uint8_t* encoded_value, size_t encoded_value_len, uin
 uint8_t contains_scale(const ScaleElem *el);
 uint8_t as_option(const ScaleElem *el, ScaleElem *el_option);
 size_t get_option_size(const ScaleElem *el);
+size_t get_vector_size(const ScaleElem** elements, const uint32_t elements_len);
 
 // Internals
 void uint_as_compact(Compact *compact, uint32_t value);

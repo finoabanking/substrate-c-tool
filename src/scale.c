@@ -95,6 +95,88 @@ uint8_t as_option(const ScaleElem *el, ScaleElem *el_option) {
 
 }
 
+// returns the size of the array to be allocated for the SCALE vector
+size_t get_vector_size(const ScaleElem** elements, const uint32_t elements_len) {
+
+    if (!elements || elements_len == 0) {
+        return 0;
+    }
+
+    size_t result = 0;
+    if (!elements[0])
+        return 0;
+
+    uint8_t t = elements[0]->type;
+    for (uint32_t i=0; i<elements_len; i++) {
+        if (elements[i]) {
+            if (elements[i]->type != t)
+                return 0; // different type
+
+            // encode value
+            uint8_t scale_len = get_scale_length(elements[i]);
+            uint8_t encoded[scale_len];
+            if (get_scale_value(elements[i], encoded, scale_len) > 0)
+                return 0;
+
+            result += scale_len;
+        }
+    }
+    return result;
+}
+
+// receives a collection of SCALE encoded elements and encodes them as a SCALE vector
+// @param `encoded_value` contains the resulting SCALE vector
+// @param `value` points to a pre-allocated buffer of size `value_len`.
+// @param `value_len` is given by the function get_vector_size
+// @param `elements` is the collection of elements to be encoded in the vector
+// @param `elements_len` is the quantity of elements
+// @param `type` is the SCALE type of elements (they must all belong to the same type)
+uint8_t as_scale_vector(ScaleElem* encoded_value, const ScaleElem** elements, const uint32_t elements_len) {
+
+    size_t pos = 0;
+
+    // first of all encode `elements_len` to SCALE compact
+    Compact prefix;
+    uint_as_compact(&prefix, elements_len);
+    uint8_t scale_len = prefix.length;
+
+    // write prefix as prefix
+    SUBSTRATE_MEMCPY(encoded_value->elem.vector.value, prefix.value, scale_len);
+    pos += scale_len;
+
+    if (encoded_value && elements_len) {
+        
+        if (!elements[0])
+            return 1;
+
+        uint8_t t = elements[0]->type;
+        for (uint32_t i = 0; i < elements_len; i++) {
+            if (elements[i]) {
+                if (elements[i]->type != t)
+                    return 1; // different type
+
+                // encode value
+                uint8_t scale_len = get_scale_length(elements[i]);
+                if (scale_len == 0)
+                    return 1;
+
+                uint8_t encoded[scale_len];
+                if (get_scale_value(elements[i], encoded, scale_len) > 0)
+                    return 1;
+
+                pos += scale_len;
+
+                if (pos > encoded_value->elem.vector.length + scale_len)
+                    return 1; // this should not happen
+
+                SUBSTRATE_MEMCPY(&encoded_value->elem.vector.value[pos], encoded, scale_len);
+            }
+        }
+        return 0;
+    }
+    return 1;
+}
+
 // converts the `value` to a Compact
 // @param `compact` is the pre-allocated compact to fill
 // @param `value` is the uint32_t to be encoded
@@ -268,7 +350,7 @@ void as_boolean(ScaleBoolean* result, uint8_t value) {
 }
 
 // encodes a collection of SCALE elements to a new SCALE element
-uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, size_t value_len, ScaleElem** elements, size_t elements_len, enum ScaleTypes type) {
+uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, size_t value_len, const ScaleElem** elements, size_t elements_len, enum ScaleTypes type) {
 
     if (!encoded_value)
         return 1;
@@ -284,7 +366,20 @@ uint8_t encode_composite_scale(ScaleElem* encoded_value, uint8_t *value, size_t 
                 return 0;
             }
         }
+    } else if (type == type_vector) {
+        if (elements_len > 0 && value_len > 0) {
+            encoded_value->type = type_vector;
+            encoded_value->elem.option.type = type_vector;
+            encoded_value->elem.option.length = value_len;
+            SUBSTRATE_MEMSET(value, 0, value_len);
+            encoded_value->elem.option.value = value;
+            if (as_scale_vector(encoded_value, elements, elements_len) == 0) {
+                return 0;
+            }            
+        }
     }
+
+    return 1;
 }
 
 // encodes `value` to its SCALE format
