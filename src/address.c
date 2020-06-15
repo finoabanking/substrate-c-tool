@@ -100,8 +100,8 @@ uint8_t ss58_encode(uint8_t **address, size_t* addrlen, const uint8_t *pubkey, e
 // `ss58_decode` decodes a valid SS58-encoded address
 // @return 0/1 if success/failure
 // @param `address` is the SS-58-encoded address
-// @param `out` contains the decoded value
-// @param `out_len` is the number of bytes written in `out`
+// @param `out` contains the decoded value. It should be pre-allocated
+// @param `out_len` is the number of bytes written in `out`. It should be initialized with the size of `out`
 // @param `addr_type` is the ID of the target chain
 uint8_t ss58_decode(uint8_t* out, const uint8_t *address, size_t *out_len, enum Chain addr_type) {
 
