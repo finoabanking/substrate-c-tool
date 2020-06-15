@@ -26,10 +26,6 @@ The following packages are compatible with this project:
 git clone https://github.com/bitcoin/libbase58.git ./lib/libbase58
 git clone https://github.com/BLAKE2/BLAKE2.git ./lib/BLAKE2
 ```
-This example configuration is build with:
-```
-export DEFAULT_CONFIG=1
-```
 
 Now you can try the examples.
 
@@ -70,3 +66,4 @@ Instructions are in `tests/fuzz/README.md`.
 
 * Extrinsic
     * Signs an Extrinsic containing a balance transfer.
+    * Supports Kusama and Polkadot runtimes.

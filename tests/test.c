@@ -535,7 +535,7 @@ static MunitResult constructs_transaction_payload(const MunitParameter params[],
   SubstrateKeypair keypair;
   generate_Alices_test_keypair(&keypair);
 
-  const uint8_t* expected_result = hexstring_to_array("040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee000004001f040000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe", &len);
+  const uint8_t* expected_result = hexstring_to_array("040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee00000400d507000001000000b0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafeb0a8d493285c2df73290dfb7e61f870f17b41801197a149ca93654499ea3dafe", &len);
   SubstrateTransaction transaction_data;
   size_t payload_len;
   // init a runtime
@@ -640,7 +640,7 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   init_kusama_runtime(&kusamaRuntime);
 
   // test amount = 0
-  expected_result = hexstring_to_array("21028488dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee00959ecca272c11cd3ea67cca328d558a322671a47d620080ab4f3329464d5d72081b58cae2f94b3b7b5dec9b69e8f012603fad3ffae952471964e8c8569044003000400040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee00", &len);
+  expected_result = hexstring_to_array("21028488dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee007fd67dabefbb73c7f89edb22c26a9cd73b7bfa74c7eda1da7ec8a2f282f4902d78003d69989c40c9471d004d852c41dadbb57f81b7a05169579f0f1963322c08000400040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee00", &len);
 
   transaction_data = malloc(sizeof(SubstrateTransaction));
   uint8_t amount[1] = {0x00};
@@ -649,13 +649,14 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   mock_transaction(transaction_data, amount, 1, nonce, 1, tip, 1, KUSAMA, 4, Alice.public_key);
 
   sign_transfer_with_secret(&transaction, &transaction_len, &keypair, transaction_data, &kusamaRuntime, &current_block);
+
   munit_assert_memory_equal(transaction_len, transaction, expected_result);
   SUBSTRATE_FREE(expected_result);
   SUBSTRATE_FREE(transaction);
   SUBSTRATE_FREE(transaction_data);
 
   // test amount = 69 (0x45) (Compact will have size 2)
-  expected_result = hexstring_to_array("25028488dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee003e2e6e9b865739cea7e07410abb2b71e8cc0b2d0641d33d954cad9cfc4cf1470ae2b6811a26684e50292fa8bbe03aa3eb41240e7011fc44e92e0fb52577f2104001000040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee1501", &len);
+  expected_result = hexstring_to_array("25028488dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee00a5ba794723a7bb5cc8ae72ce1ec86f14f7107e38cbd830b995a6eb016e00e7df2b1b4a3a577f548bd77158f9b3c8383fda3b3ee55dfc268524b90f31d11ed10b001000040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee1501", &len);
 
   transaction_data = malloc(sizeof(SubstrateTransaction));
   uint8_t amount2[2] = {0x45};
@@ -669,7 +670,7 @@ static MunitResult signs_transaction_v4(const MunitParameter params[], void* dat
   SUBSTRATE_FREE(transaction_data);
 
   // test amount = 36893488147419103232
-  expected_result = hexstring_to_array("45028488dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee004cbef33b14ea981ae497476dda53ea0edb05761eda4ee76b571d86df2b28ff98ff2554126d5fcbccc7806afb06b914ad7d2baccc40ed0d62bd03842fdf062906000000040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee17000000000000000002", &len);
+  expected_result = hexstring_to_array("45028488dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee005ce2f691859d757eeb1f1573a48d2850e05388e819867abf48e44e727282b561508f15a937768acca37a6ba136dc5127509db2d46b0277e59e43cea1ab363509000000040088dc3417d5058ec4b4503e0c12ea1a0a89be200fe98922423d4334014fa6b0ee17000000000000000002", &len);
 
   transaction_data = malloc(sizeof(SubstrateTransaction));
   uint8_t amount3[9] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02};
