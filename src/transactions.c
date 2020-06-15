@@ -89,11 +89,12 @@ uint8_t* construct_TransactionPayload(const SubstrateTransaction *tx_data, const
     res_tip = get_scale_value(&(tx_data->tip), tip_value, tip_length);
 
     uint8_t runtime_version[SIZE_SPEC];
+    uint8_t transaction_version[SIZE_SPEC] = {0x01, 0x00, 0x00, 0x00};
     set_runtime_version(runtime_version, runtime->version);
 
     if ( (res_nonce == 0) && (res_tip == 0) && (res_era == 0) &&
         (nonce_length > 0) && (tip_length > 0) && (era_length > 0)) { // encoded value is retrieved
-        *payload_len = call_len + era_length + nonce_length + tip_length + SIZE_SPEC + SIZE_HASH_256 + SIZE_HASH_256;
+        *payload_len = call_len + era_length + nonce_length + tip_length + SIZE_SPEC + SIZE_SPEC + SIZE_HASH_256 + SIZE_HASH_256;
         transaction_payload = SUBSTRATE_MALLOC(*payload_len);
 
         if (transaction_payload != NULL) {
@@ -113,6 +114,8 @@ uint8_t* construct_TransactionPayload(const SubstrateTransaction *tx_data, const
             SUBSTRATE_MEMCPY(&transaction_payload[pos], tip_value, tip_length);
             pos += tip_length;
             SUBSTRATE_MEMCPY(&transaction_payload[pos], runtime_version, SIZE_SPEC);
+            pos += SIZE_SPEC;
+            SUBSTRATE_MEMCPY(&transaction_payload[pos], transaction_version, SIZE_SPEC);
             pos += SIZE_SPEC;
             SUBSTRATE_MEMCPY(&transaction_payload[pos], genesis_hash, SIZE_HASH_256);
             pos += ADDRESS_LEN;
@@ -234,7 +237,7 @@ uint8_t validate_transaction_data(const SubstrateTransaction *transaction_data) 
 // @param `runtime` points to the runtime
 uint8_t validate_runtime(const SubstrateRuntime *runtime) {
     if (runtime) {
-        if ( runtime->chain == KUSAMA )
+        if (( runtime->chain == KUSAMA ) || ( runtime->chain == POLKADOT ))
             return 0;
     }
     SUBSTRATE_PRINTF("Invalid chain\n");
