@@ -8,7 +8,7 @@ uint8_t generate_keypair(uint8_t *pk, uint8_t *sk, const uint8_t *seed) {
 uint8_t ss58_encode_from_seed(uint8_t **address, size_t* addrlen, uint8_t **privkey, size_t *privkeylen, const uint8_t *seed, enum Chain addr_type) {
 
     uint8_t pk[ADDRESS_LEN];
-    uint8_t sk[ADDRESS_LEN];
+    uint8_t sk[2*ADDRESS_LEN];
     if ( generate_keypair(pk, sk, seed) == 0) {
         if ( ss58_encode(address, addrlen, pk, addr_type) == 0 ) {
             // success. also make available the private key
