@@ -122,7 +122,6 @@ static MunitResult encodes_option(const MunitParameter params[], void* data) {
   ScaleElem compact;
   encoded = encode_scale(&compact, v, 1, type_compact);
 
-  ScaleElem optional_compact;
   ScaleElem option_elem2;
   uint8_t optional_compact_len = get_option_size(&compact);
   uint8_t optional_value[optional_compact_len];
@@ -133,6 +132,9 @@ static MunitResult encodes_option(const MunitParameter params[], void* data) {
   uint8_t expected_compact[2] = {0x01, 0x00};
   munit_assert_memory_equal(2, option_elem2.elem.option.value, expected_compact);  
 
+  free((void*) scale_elem);
+
+  return MUNIT_OK;
 }
 
 static MunitResult encodes_vector(const MunitParameter params[], void* data) {
@@ -210,7 +212,7 @@ static MunitResult encodes_enumeration(const MunitParameter params[], void* data
     0x06, 0x08, 0x0c, 0x00 // third element
     };
   munit_assert_memory_equal(enumeration.elem.vector.length, enumeration.elem.vector.value, expected);
-
+  return MUNIT_OK;
 }
 
 static MunitResult encodes_era(const MunitParameter params[], void* data) {
@@ -330,52 +332,62 @@ static MunitResult decodes_raw_extrinsic(const MunitParameter params[], void* da
   // must fail because blockNumber == 0
   raw_extrinsic = hexstring_to_array("290284fe6549bbf4dde68661a07690ffb908e9a586e3867a6a0c4066d451d3387d1683", &raw_extrinsic_len);
   res = decode_raw_extrinsic(raw_extrinsic, 1234, &kusamaRuntime, 0, &decodedExtrinsic);
+  free((void*) raw_extrinsic);
   munit_assert_true(res);
   
   const unsigned long blockNumber = 1375087; // runtime 1050
   // must fail getting `version`
   raw_extrinsic = hexstring_to_array("2902", &raw_extrinsic_len);
   res = decode_raw_extrinsic(raw_extrinsic, raw_extrinsic_len, &kusamaRuntime, blockNumber, &decodedExtrinsic);
+  free((void*) raw_extrinsic);
   munit_assert_true(res);
 
   // must fail getting `version`
   raw_extrinsic = hexstring_to_array("290284", &raw_extrinsic_len);
   res = decode_raw_extrinsic(raw_extrinsic, raw_extrinsic_len, &kusamaRuntime, blockNumber, &decodedExtrinsic);
+  free((void*) raw_extrinsic);
   munit_assert_true(res);
 
   // must fail getting `signature_type`
   raw_extrinsic = hexstring_to_array("290284fe6549bbf4dde68661a07690ffb908e9a586e3867a6a0c4066d451d3387d1683", &raw_extrinsic_len);
   res = decode_raw_extrinsic(raw_extrinsic, raw_extrinsic_len, &kusamaRuntime, blockNumber, &decodedExtrinsic);
+  free((void*) raw_extrinsic);
   munit_assert_true(res);
 
   // must fail getting `era`
   raw_extrinsic = hexstring_to_array("290284fe6549bbf4dde68661a07690ffb908e9a586e3867a6a0c4066d451d3387d168300c168ac0902387ec587c054657bcfb6bcc1727e5380087bbe0f8b3f38e3dc80eea98366f8bd64abbfa25338f148fed4250645e11ad45ff38331e4958a0a2e5f06", &raw_extrinsic_len);
   res = decode_raw_extrinsic(raw_extrinsic, raw_extrinsic_len, &kusamaRuntime, blockNumber, &decodedExtrinsic);
+  free((void*) raw_extrinsic);
   munit_assert_true(res);
 
   // must fail getting `era`
   raw_extrinsic = hexstring_to_array("290284fe6549bbf4dde68661a07690ffb908e9a586e3867a6a0c4066d451d3387d168300c168ac0902387ec587c054657bcfb6bcc1727e5380087bbe0f8b3f38e3dc80eea98366f8bd64abbfa25338f148fed4250645e11ad45ff38331e4958a0a2e5f06", &raw_extrinsic_len);
   res = decode_raw_extrinsic(raw_extrinsic, raw_extrinsic_len, &kusamaRuntime, blockNumber, &decodedExtrinsic);
+  free((void*) raw_extrinsic);
   munit_assert_true(res);
 
   // must fail getting `tip`
   raw_extrinsic = hexstring_to_array("290284fe6549bbf4dde68661a07690ffb908e9a586e3867a6a0c4066d451d3387d168300c168ac0902387ec587c054657bcfb6bcc1727e5380087bbe0f8b3f38e3dc80eea98366f8bd64abbfa25338f148fed4250645e11ad45ff38331e4958a0a2e5f060000", &raw_extrinsic_len);
   res = decode_raw_extrinsic(raw_extrinsic, raw_extrinsic_len, &kusamaRuntime, blockNumber, &decodedExtrinsic);
+  free((void*) raw_extrinsic);
   munit_assert_true(res);
 
   // must fail getting `module`
   raw_extrinsic = hexstring_to_array("290284fe6549bbf4dde68661a07690ffb908e9a586e3867a6a0c4066d451d3387d168300c168ac0902387ec587c054657bcfb6bcc1727e5380087bbe0f8b3f38e3dc80eea98366f8bd64abbfa25338f148fed4250645e11ad45ff38331e4958a0a2e5f06000000", &raw_extrinsic_len);
   res = decode_raw_extrinsic(raw_extrinsic, raw_extrinsic_len, &kusamaRuntime, blockNumber, &decodedExtrinsic);
+  free((void*) raw_extrinsic);
   munit_assert_true(res);
 
   // must fail getting `call`
   raw_extrinsic = hexstring_to_array("290284fe6549bbf4dde68661a07690ffb908e9a586e3867a6a0c4066d451d3387d168300c168ac0902387ec587c054657bcfb6bcc1727e5380087bbe0f8b3f38e3dc80eea98366f8bd64abbfa25338f148fed4250645e11ad45ff38331e4958a0a2e5f060000000400fe6549bbf4dde68661a07690ffb908e9a586e3867a6a0c4066d451d3387d1683", &raw_extrinsic_len);
   res = decode_raw_extrinsic(raw_extrinsic, raw_extrinsic_len, &kusamaRuntime, blockNumber, &decodedExtrinsic);
+  free((void*) raw_extrinsic);
   munit_assert_true(res);
 
   // must succeed
   raw_extrinsic = hexstring_to_array("290284fe6549bbf4dde68661a07690ffb908e9a586e3867a6a0c4066d451d3387d168300c168ac0902387ec587c054657bcfb6bcc1727e5380087bbe0f8b3f38e3dc80eea98366f8bd64abbfa25338f148fed4250645e11ad45ff38331e4958a0a2e5f060000000400fe6549bbf4dde68661a07690ffb908e9a586e3867a6a0c4066d451d3387d168300", &raw_extrinsic_len);
   res = decode_raw_extrinsic(raw_extrinsic, raw_extrinsic_len, &kusamaRuntime, blockNumber, &decodedExtrinsic);
+  free((void*) raw_extrinsic);
   munit_assert_false(res);
 
   return MUNIT_OK;
@@ -443,11 +455,16 @@ static MunitResult verify_address(const MunitParameter params[], void* data) {
   result = ss58_decode(out, invalid_checksum, &out_len, GENERIC);
   munit_assert(result == 1);
 
+  free((void*) out);
+  out = SUBSTRATE_MALLOC(64);
+
   // must succeed
   SUBSTRATE_MEMSET(out, 0, 64);
+  out_len = 64;
   result = ss58_decode(out, address, &out_len, GENERIC);
   munit_assert(result == 0);
   munit_assert_memory_equal(out_len, out, Alice.public_key);
+  free((void*) out);
 
   return MUNIT_OK;
 }
@@ -507,6 +524,7 @@ static MunitResult constructs_balance_transfer_function(const MunitParameter par
   result = construct_BalanceTransferFunction(&transaction_data, &kusamaRuntime, &call_len);
   munit_assert_memory_equal(call_len, result, expected_result);
   free((void*) expected_result);
+  free((void*) result);
   
   return MUNIT_OK;
 }
@@ -540,6 +558,8 @@ static MunitResult constructs_transaction_payload(const MunitParameter params[],
   result = construct_TransactionPayload(&transaction_data, &kusamaRuntime, &current_block, call, len, &payload_len);
   munit_assert_memory_equal(payload_len, result, expected_result);
   free((void*) expected_result);
+  free((void*) call);
+  free((void*) result);
 
   return MUNIT_OK;
 }
@@ -574,6 +594,7 @@ static MunitResult constructs_transaction_info(const MunitParameter params[], vo
 
   free((void*) signature);
   free((void*) expected_result);
+  free((void*) result);
 
   return MUNIT_OK;
 }
@@ -598,6 +619,7 @@ static MunitResult constructs_extrinsic(const MunitParameter params[], void* dat
   free((void*) transaction_info);
   free((void*) call);
   free((void*) expected_result);
+  free((void*) result);
 
   return MUNIT_OK;
 }
@@ -790,6 +812,8 @@ static MunitResult encodes_vector_u8(const MunitParameter params[], void* data) 
   as_scale_vector_u8(result, s, input, len);
   munit_assert_memory_equal(s, result, expected_result);
   free(result);
+  free((void*) expected_result);
+  free((void*) input);
 
   return MUNIT_OK;
 

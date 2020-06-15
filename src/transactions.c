@@ -260,6 +260,7 @@ uint8_t get_keypair(const uint8_t *priv_key, SubstrateKeypair *keypair) {
     // provide a crypto library with digital signature
     exit(1);
 #endif
+    return 0;
 }
 
 // Signs a transaction with a private key, outputs the raw bytes

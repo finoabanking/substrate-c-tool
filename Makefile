@@ -1,11 +1,8 @@
 PROJECT=substrate-c-tool
-SOURCES=lib/BLAKE2/sse/blake2b.c lib/libbase58/base58.c src/address.c src/scale.c src/transactions.c src/kusama.c src/extrinsic.c
+SOURCES=lib/BLAKE2/sse/blake2b.c lib/libbase58/base58.c src/*.c
 LIBFLAGS=-l
 LIBRARY=sodium
-ifeq ($(DEFAULT_CONFIG),1)
-	SOURCES=lib/BLAKE2/sse/blake2b.c lib/libbase58/base58.c src/address.c src/scale.c src/transactions.c src/kusama.c src/extrinsic.c
-	CFLAGS=-Wall -DDEFAULT_CONFIG
-endif
+CFLAGS=-Wall -fstack-protector -DDEFAULT_CONFIG
 BIN=bin
 CC=gcc
 

@@ -95,7 +95,7 @@ uint8_t as_option(const ScaleElem *el, ScaleElem *el_option) {
         SUBSTRATE_MEMCPY(&el_option->elem.option.value[1], value, value_len);
         return 0;
     }
-
+    return 1;
 }
 
 // returns the size of the array to be allocated for the SCALE vector

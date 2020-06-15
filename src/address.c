@@ -8,7 +8,7 @@ uint8_t generate_keypair(uint8_t *pk, uint8_t *sk, const uint8_t *seed) {
 uint8_t ss58_encode_from_seed(uint8_t **address, size_t* addrlen, uint8_t **privkey, size_t *privkeylen, const uint8_t *seed, enum Chain addr_type) {
 
     uint8_t pk[ADDRESS_LEN];
-    uint8_t sk[ADDRESS_LEN];
+    uint8_t sk[2*ADDRESS_LEN];
     if ( generate_keypair(pk, sk, seed) == 0) {
         if ( ss58_encode(address, addrlen, pk, addr_type) == 0 ) {
             // success. also make available the private key
@@ -100,8 +100,8 @@ uint8_t ss58_encode(uint8_t **address, size_t* addrlen, const uint8_t *pubkey, e
 // `ss58_decode` decodes a valid SS58-encoded address
 // @return 0/1 if success/failure
 // @param `address` is the SS-58-encoded address
-// @param `out` contains the decoded value
-// @param `out_len` is the number of bytes written in `out`
+// @param `out` contains the decoded value. It should be pre-allocated
+// @param `out_len` is the number of bytes written in `out`. It should be initialized with the size of `out`
 // @param `addr_type` is the ID of the target chain
 uint8_t ss58_decode(uint8_t* out, const uint8_t *address, size_t *out_len, enum Chain addr_type) {
 
