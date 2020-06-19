@@ -18,7 +18,10 @@ int main() {
     if (ss58_encode_from_seed(&address, &address_len, &privkey, &privkey_len, seed, GENERIC) != 0)
         exit(1);
 
-    printf("Substrate address: %s\n", address);
+    uint8_t address_s[address_len+1];
+    SUBSTRATE_MEMSET(address_s, 0, address_len+1);
+    SUBSTRATE_MEMCPY(address_s, address, address_len);
+    printf("Substrate address: %s\n", address_s);
 
     size_t decoded_address_buf = 64;
     uint8_t decoded_address[decoded_address_buf];
